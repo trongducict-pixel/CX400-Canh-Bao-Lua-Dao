@@ -1,0 +1,6 @@
+{
+  "name": "CX400 – Cảnh Giác Lừa Đảo",
+  "description": "Chi nhánh VietinBank Ninh Bình - Phòng DVKH. Ứng dụng truyền thông, nâng cao cảnh giác các hình thức lừa đảo ngân hàng và công nghệ cao.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
