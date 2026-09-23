@@ -229,26 +229,27 @@ export function ScamTypesScreen({
           <ArrowLeft className="w-4 h-4" />
           <span>{selectedCategory ? '← Xem danh sách chiêu trò' : '← Trang chủ'}</span>
         </button>
-        <span className="text-[11px] font-black uppercase text-blue-700 tracking-wider">
-          NHẬN DIỆN CHIÊU TRÒ
+        <span className="text-[11px] font-black uppercase text-[#004B87] tracking-wider">
+          NHẬN DIỆN CHIÊU TRÒ – VIETINBANK
         </span>
       </div>
 
       {/* VIEW 1: CATEGORY GRID (2 COLUMNS) */}
       {!selectedCategory ? (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-3xl p-5 space-y-1">
-            <h1 className="text-lg sm:text-xl font-black text-blue-950 tracking-tight flex items-center gap-2">
-              <span>🔎 CÁC HÌNH THỨC LỪA ĐẢO THƯỜNG GẶP</span>
+          <div className="bg-gradient-to-r from-[#003B70] via-[#004B87] to-[#005A9C] text-white rounded-3xl p-5 space-y-1.5 shadow-md shadow-[#004B87]/15">
+            <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
+              <Search className="w-5 h-5 text-[#00A3E0]" />
+              <span>11 HÌNH THỨC LỪA ĐẢO PHỔ BIẾN NHẤT</span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium">
-              Chạm vào từng chiêu trò để xem kịch bản, dấu hiệu nhận biết và cách phòng ngừa:
+            <p className="text-xs sm:text-sm text-sky-100 font-medium">
+              Chạm vào từng chiêu trò để xem kịch bản, dấu hiệu nhận diện và biện pháp phòng vệ:
             </p>
           </div>
 
           {/* Search inside Scam Types */}
           <div className="relative">
-            <div className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-xs focus-within:border-blue-600 transition-colors">
+            <div className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-xs focus-within:border-[#004B87] transition-colors">
               <Search className="w-4 h-4 text-slate-400 ml-3.5 shrink-0" />
               <input
                 type="text"
@@ -283,9 +284,9 @@ export function ScamTypesScreen({
                     setSelectedCategory(cat);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-blue-500 hover:shadow-md text-left transition-all active:scale-95 shadow-xs flex flex-col justify-between group min-h-[115px]"
+                  className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-[#004B87] hover:shadow-lg hover:shadow-[#004B87]/10 text-left transition-all active:scale-95 shadow-xs flex flex-col justify-between group min-h-[120px]"
                 >
-                  <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition-all shrink-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#004B87]/10 text-[#004B87] flex items-center justify-center group-hover:bg-[#004B87] group-hover:text-white transition-all shrink-0">
                     <Icon className="w-5 h-5" />
                   </div>
 
@@ -295,7 +296,7 @@ export function ScamTypesScreen({
                     </h3>
                     <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mt-1">
                       <span>{storiesCount} bài học</span>
-                      <span className="text-blue-700 font-bold group-hover:translate-x-1 transition-transform">
+                      <span className="text-[#004B87] font-bold group-hover:translate-x-1 transition-transform">
                         →
                       </span>
                     </div>
@@ -311,14 +312,14 @@ export function ScamTypesScreen({
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
             {/* Category Title */}
             <div className="flex items-start gap-3.5 border-b border-slate-100 pb-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-700 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-700/20">
+              <div className="w-12 h-12 rounded-2xl bg-[#004B87] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#004B87]/20">
                 {(() => {
                   const Icon = getIconForCategory(selectedCategory.icon);
                   return <Icon className="w-6 h-6" />;
                 })()}
               </div>
               <div>
-                <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider">
+                <span className="text-[10px] font-black uppercase text-[#004B87] tracking-wider">
                   CHI TIẾT THỦ ĐOẠN
                 </span>
                 <h1 className="text-base sm:text-xl font-black text-slate-900 leading-snug">
@@ -332,7 +333,7 @@ export function ScamTypesScreen({
               <h2 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
                 <span>📌 KẺ LỪA ĐẢO THƯỜNG LÀM GÌ?</span>
               </h2>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+              <div className="p-4 rounded-2xl bg-[#F4F7FB] border border-[#004B87]/15 text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
                 {details?.whatTheyDo}
               </div>
             </div>
@@ -348,7 +349,7 @@ export function ScamTypesScreen({
                     key={idx}
                     className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs sm:text-sm text-slate-800 font-medium"
                   >
-                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-5 h-5 rounded-full bg-[#004B87]/15 text-[#004B87] text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
                       {idx + 1}
                     </span>
                     <span className="leading-relaxed">{scen}</span>
@@ -391,7 +392,7 @@ export function ScamTypesScreen({
             {relatedStories.length > 0 && (
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <h2 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-blue-700" />
+                  <BookOpen className="w-4 h-4 text-[#004B87]" />
                   <span>📖 CÂU CHUYỆN LIÊN QUAN ĐÃ XUẤT BẢN</span>
                 </h2>
                 <div className="space-y-2.5">
@@ -399,17 +400,17 @@ export function ScamTypesScreen({
                     <div
                       key={st.id}
                       onClick={() => onOpenStory(st)}
-                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 cursor-pointer transition-all active:scale-98 flex items-center justify-between group"
+                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-[#004B87] hover:bg-[#004B87]/5 cursor-pointer transition-all active:scale-98 flex items-center justify-between group"
                     >
                       <div className="space-y-1 pr-2">
-                        <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-blue-700">
+                        <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-[#004B87]">
                           {st.title}
                         </h3>
                         <p className="text-[11px] text-slate-500 line-clamp-1 font-medium">
                           {st.situation}
                         </p>
                       </div>
-                      <span className="text-xs font-bold text-blue-700 whitespace-nowrap flex items-center gap-1 shrink-0">
+                      <span className="text-xs font-bold text-[#004B87] whitespace-nowrap flex items-center gap-1 shrink-0">
                         Xem <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </span>
                     </div>
@@ -423,9 +424,9 @@ export function ScamTypesScreen({
               <div className="pt-2 border-t border-slate-100">
                 <button
                   onClick={() => onOpenQuizForCategory(selectedCategory.id)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-700/20 active:scale-98 transition-all min-h-[48px]"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-[#004B87]/20 active:scale-98 transition-all min-h-[48px]"
                 >
-                  <BrainCircuit className="w-4 h-4 text-amber-300" />
+                  <BrainCircuit className="w-4 h-4 text-[#00A3E0]" />
                   <span>🧠 LÀM QUIZ VỀ CHIÊU TRÒ NÀY →</span>
                 </button>
               </div>

@@ -126,8 +126,8 @@ export function QuizScreen({
           <ArrowLeft className="w-4 h-4" />
           <span>← Trang chủ</span>
         </button>
-        <span className="text-[11px] font-black uppercase text-indigo-700 tracking-wider">
-          TRẮC NGHIỆM NHẬN DIỆN
+        <span className="text-[11px] font-black uppercase text-[#004B87] tracking-wider">
+          TRẮC NGHIỆM NHẬN DIỆN – VIETINBANK
         </span>
       </div>
 
@@ -135,10 +135,10 @@ export function QuizScreen({
         /* QUESTION VIEW: 1 QUESTION PER SCREEN */
         <div className="space-y-4">
           {/* Progress Indicator */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between">
+          <div className="bg-[#004B87]/5 border border-[#004B87]/20 rounded-2xl p-3.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BrainCircuit className="w-5 h-5 text-indigo-700" />
-              <span className="text-xs sm:text-sm font-black text-indigo-950 uppercase tracking-wide">
+              <BrainCircuit className="w-5 h-5 text-[#004B87]" />
+              <span className="text-xs sm:text-sm font-black text-[#003B70] uppercase tracking-wide">
                 CÂU HỎI {currentIndex + 1} / {activeQuizSet.length}
               </span>
             </div>
@@ -148,10 +148,10 @@ export function QuizScreen({
                   key={i}
                   className={`h-2 rounded-full transition-all ${
                     i === currentIndex
-                      ? 'w-6 bg-indigo-700'
+                      ? 'w-6 bg-[#004B87]'
                       : i < currentIndex
-                      ? 'w-2 bg-indigo-400'
-                      : 'w-2 bg-indigo-200'
+                      ? 'w-2 bg-[#00A3E0]'
+                      : 'w-2 bg-slate-200'
                   }`}
                 />
               ))}
@@ -167,7 +167,7 @@ export function QuizScreen({
             {/* Answer Options */}
             <div className="space-y-2.5">
               {currentQ.options.map((opt, idx) => {
-                let btnStyle = 'bg-slate-50 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-slate-800';
+                let btnStyle = 'bg-slate-50 border-slate-200 hover:border-[#004B87] hover:bg-[#004B87]/5 text-slate-800';
 
                 if (isAnswered) {
                   if (idx === currentQ.correct_answer) {
@@ -232,7 +232,7 @@ export function QuizScreen({
 
                 <button
                   onClick={handleNextQuestion}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-700/20 active:scale-98 transition-all min-h-[48px]"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-[#004B87]/20 active:scale-98 transition-all min-h-[48px]"
                 >
                   <span>
                     {currentIndex + 1 < activeQuizSet.length
@@ -248,19 +248,19 @@ export function QuizScreen({
       ) : (
         /* QUIZ RESULT VIEW ACCORDING TO SECTION XV */
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 text-center space-y-6 shadow-xs animate-in zoom-in-95 duration-200">
-          <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-700 flex items-center justify-center mx-auto shadow-inner">
-            <Award className="w-8 h-8 text-indigo-600" />
+          <div className="w-16 h-16 rounded-3xl bg-[#004B87]/10 text-[#004B87] flex items-center justify-center mx-auto shadow-inner">
+            <Award className="w-8 h-8 text-[#004B87]" />
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs font-black uppercase text-indigo-700 tracking-wider">
-              KẾT QUẢ TRẮC NGHIỆM
+            <span className="text-xs font-black uppercase text-[#004B87] tracking-wider">
+              KẾT QUẢ TRẮC NGHIỆM – VIETINBANK
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900">
               🎉 BẠN ĐÃ HOÀN THÀNH!
             </h2>
             <p className="text-sm font-bold text-slate-600 pt-1">
-              Bạn trả lời đúng <span className="text-indigo-700 text-lg">{score}</span> /{' '}
+              Bạn trả lời đúng <span className="text-[#004B87] text-lg font-black">{score}</span> /{' '}
               {activeQuizSet.length} câu
             </p>
           </div>
@@ -281,14 +281,14 @@ export function QuizScreen({
                 <span>Đường link giả mạo đánh cắp mã OTP</span>
               </div>
               <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-bold text-slate-800">
-                <PhoneCall className="w-4 h-4 text-blue-600 shrink-0" />
+                <PhoneCall className="w-4 h-4 text-[#004B87] shrink-0" />
                 <span>Mạo danh cơ quan Công an yêu cầu chuyển tiền</span>
               </div>
             </div>
 
             <button
               onClick={onGoToScamTypes}
-              className="w-full py-3 px-4 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all mt-2 min-h-[46px]"
+              className="w-full py-3 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all mt-2 min-h-[46px]"
             >
               <span>XEM CÁC CHIÊU TRÒ NÀY →</span>
             </button>

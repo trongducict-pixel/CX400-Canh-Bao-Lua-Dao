@@ -170,27 +170,27 @@ export function AlertsNewsScreen({
           <ArrowLeft className="w-4 h-4" />
           <span>{selectedStory ? '← Danh sách bản tin' : '← Trang chủ'}</span>
         </button>
-        <span className="text-[11px] font-black uppercase text-red-600 tracking-wider">
-          BẢN TIN CẢNH BÁO
+        <span className="text-[11px] font-black uppercase text-[#004B87] tracking-wider">
+          BẢN TIN CẢNH BÁO – VIETINBANK
         </span>
       </div>
 
       {/* VIEW 1: STORY LIST */}
       {!selectedStory ? (
         <div className="space-y-4">
-          <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-3xl p-5 shadow-lg space-y-1">
-            <h1 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-2">
+          <div className="bg-gradient-to-r from-[#003B70] via-[#004B87] to-[#005A9C] text-white rounded-3xl p-5 shadow-lg space-y-1.5 shadow-[#004B87]/15">
+            <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
               <Flame className="w-5 h-5 text-amber-300" />
               <span>🚨 BẢN TIN CẢNH BÁO THỰC TẾ</span>
             </h1>
-            <p className="text-xs sm:text-sm text-red-100 font-medium">
-              Các câu chuyện người thật, việc thật đã được thẩm định để phòng ngừa rủi ro tài sản:
+            <p className="text-xs sm:text-sm text-sky-100 font-medium">
+              Các câu chuyện người thật, việc thật đã được VietinBank thẩm định để phòng ngừa rủi ro tài sản:
             </p>
           </div>
 
           {/* Search Input */}
           <div className="relative">
-            <div className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-xs focus-within:border-blue-600 transition-colors">
+            <div className="relative flex items-center bg-white rounded-2xl border border-slate-300 shadow-xs focus-within:border-[#004B87] transition-colors">
               <Search className="w-4 h-4 text-slate-400 ml-3.5 shrink-0" />
               <input
                 type="text"
@@ -392,11 +392,11 @@ export function AlertsNewsScreen({
 
             {/* SECTION: BÀI HỌC */}
             <div className="space-y-2">
-              <h2 className="text-xs sm:text-sm font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+              <h2 className="text-xs sm:text-sm font-black text-[#003B70] uppercase tracking-wide flex items-center gap-1.5">
                 <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span>💡 BÀI HỌC CỐT LÕI</span>
+                <span>💡 BÀI HỌC CỐT LÕI TỪ VIETINBANK</span>
               </h2>
-              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-xs sm:text-sm text-blue-950 font-semibold leading-relaxed">
+              <div className="p-4 rounded-2xl bg-[#004B87]/5 border border-[#004B87]/20 text-xs sm:text-sm text-[#003B70] font-semibold leading-relaxed">
                 {selectedStory.lesson}
               </div>
             </div>
@@ -404,15 +404,15 @@ export function AlertsNewsScreen({
             {/* QUIZ HOOK LINK (SECTION XII & XXXI) */}
             {storyQuiz && (
               <div className="pt-3 border-t border-slate-100">
-                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center space-y-2">
-                  <h3 className="text-xs sm:text-sm font-black text-indigo-950">
+                <div className="bg-[#004B87]/5 border border-[#004B87]/20 rounded-2xl p-4 text-center space-y-2">
+                  <h3 className="text-xs sm:text-sm font-black text-[#003B70]">
                     🧠 THỬ XEM BẠN CÓ NHẬN RA CHIÊU TRÒ NÀY KHÔNG?
                   </h3>
                   <button
                     onClick={() => onOpenQuizForStory(selectedStory.id)}
-                    className="w-full py-3 px-4 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-700/20 active:scale-98 transition-all min-h-[46px]"
+                    className="w-full py-3 px-4 rounded-xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-[#004B87]/20 active:scale-98 transition-all min-h-[46px]"
                   >
-                    <BrainCircuit className="w-4 h-4 text-amber-300" />
+                    <BrainCircuit className="w-4 h-4 text-[#00A3E0]" />
                     <span>LÀM QUIZ VỀ TÌNH HUỐNG NÀY →</span>
                   </button>
                 </div>

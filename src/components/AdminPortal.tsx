@@ -277,15 +277,19 @@ export function AdminPortal({
         <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 sm:p-7 space-y-6 border border-slate-200 my-auto">
           {/* Brand Header */}
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-blue-700 to-sky-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-700/20">
-              <Shield className="w-7 h-7" />
+            <div className="h-12 flex items-center justify-center">
+              <img
+                src="https://raw.githubusercontent.com/giadinhbanker/anh-super-app-bac-phu-tho/main/Logo%20VietinBank.png"
+                alt="VietinBank"
+                className="h-9 w-auto object-contain"
+              />
             </div>
             <div>
-              <h3 className="font-black text-slate-900 text-lg sm:text-xl tracking-tight">
-                CX400
+              <h3 className="font-black text-[#004B87] text-base sm:text-lg tracking-tight">
+                VIETINBANK NINH BÌNH
               </h3>
               <p className="text-xs font-bold text-slate-500">
-                Đăng nhập cán bộ chi nhánh
+                Cổng tác nghiệp Cán bộ – Hệ thống CX400
               </p>
             </div>
           </div>
@@ -309,7 +313,7 @@ export function AdminPortal({
                 placeholder="Nhập tên đăng nhập"
                 required
                 autoFocus
-                className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600 bg-slate-50/50"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-[#004B87] bg-slate-50/50"
               />
             </div>
 
@@ -324,7 +328,7 @@ export function AdminPortal({
                   onChange={e => setLoginPassword(e.target.value)}
                   placeholder="Nhập mật khẩu"
                   required
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600 bg-slate-50/50 pr-11"
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-[#004B87] bg-slate-50/50 pr-11"
                 />
                 <button
                   type="button"
@@ -339,7 +343,7 @@ export function AdminPortal({
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-black text-sm shadow-lg shadow-blue-700/20 active:scale-95 transition-all"
+              className="w-full py-3.5 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-sm shadow-lg shadow-[#004B87]/20 active:scale-95 transition-all"
             >
               Đăng nhập
             </button>
@@ -366,7 +370,7 @@ export function AdminPortal({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 overflow-hidden">
       {/* Top Navbar */}
-      <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 shrink-0">
+      <div className="bg-[#003B70] text-white px-4 py-2.5 flex items-center justify-between border-b border-[#004B87] shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
@@ -375,6 +379,15 @@ export function AdminPortal({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+
+          <div className="h-8 bg-white p-1 rounded-lg flex items-center shrink-0">
+            <img
+              src="https://raw.githubusercontent.com/giadinhbanker/anh-super-app-bac-phu-tho/main/Logo%20VietinBank.png"
+              alt="VietinBank"
+              className="h-6 w-auto object-contain"
+            />
+          </div>
+
           <div>
             <div className="flex items-center gap-2">
               <span className="font-black text-sm tracking-tight">
@@ -384,11 +397,11 @@ export function AdminPortal({
                   ? 'PHÊ DUYỆT NỘI DUNG'
                   : 'HỆ THỐNG QUẢN TRỊ CX400'}
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-blue-600 text-white">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-[#00A3E0] text-white">
                 {currentUser.role}
               </span>
             </div>
-            <div className="text-xs text-slate-400 font-medium">
+            <div className="text-xs text-sky-200 font-medium">
               Xin chào, <strong>{currentUser.full_name}</strong> ({currentUser.department})
             </div>
           </div>

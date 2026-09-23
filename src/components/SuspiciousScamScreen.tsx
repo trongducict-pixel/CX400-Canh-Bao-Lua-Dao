@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Phone,
   Building,
+  Shield,
 } from 'lucide-react';
 import { SystemSettings } from '../types';
 
@@ -90,11 +91,11 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
         },
         {
           title: 'ĐỔI MẬT KHẨU NẾU ĐÃ LỠ NHẬP',
-          desc: 'Nếu đã lỡ điền thông tin đăng nhập, dùng ứng dụng chính thức đổi mật khẩu ngay hoặc gọi ngân hàng khóa tài khoản.',
+          desc: 'Nếu đã lỡ điền thông tin đăng nhập, dùng ứng dụng chính thức VietinBank iPay đổi mật khẩu ngay hoặc gọi ngân hàng khóa tài khoản.',
           icon: Lock,
         },
       ],
-      warningNote: 'Trang web chính thức của VietinBank có tên miền vietinbank.vn và luôn có biểu tượng ổ khóa bảo mật.',
+      warningNote: 'Trang web chính thức của VietinBank có tên miền duy nhất là vietinbank.vn và luôn có biểu tượng ổ khóa bảo mật.',
     },
     {
       id: 'fake_app',
@@ -283,19 +284,20 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
   const currentSituation = situations.find(s => s.id === selectedSituationId);
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex items-center justify-between border-b border-[#004B87]/15 pb-3">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 py-2 px-3 rounded-2xl bg-white border border-slate-200 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-100 active:scale-95 transition-all shadow-xs min-h-[44px]"
+          className="inline-flex items-center gap-2 py-2 px-3.5 rounded-2xl bg-white border border-slate-200 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50 hover:text-[#004B87] active:scale-95 transition-all shadow-xs min-h-[44px]"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>← Quay lại</span>
+          <ArrowLeft className="w-4 h-4 text-[#004B87]" />
+          <span>← Trang chủ</span>
         </button>
-        <div className="text-right">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
           <span className="text-[11px] font-black uppercase text-red-600 tracking-wider">
-            TRUNG TÂM CỨU HỘ KHẨN CẤP
+            CỨU HỘ KHẨN CẤP 24/7
           </span>
         </div>
       </div>
@@ -303,12 +305,13 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
       {/* Main Content Area */}
       {!currentSituation ? (
         <div className="space-y-4">
-          <div className="bg-red-50 border border-red-200 rounded-3xl p-5 space-y-1">
+          <div className="bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 rounded-3xl p-5 space-y-1.5">
             <h1 className="text-lg sm:text-xl font-black text-red-700 tracking-tight flex items-center gap-2">
-              <span>🆘 BẠN ĐANG GẶP TÌNH HUỐNG NÀO?</span>
+              <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+              <span>BẠN ĐANG GẶP TÌNH HUỐNG NÀO?</span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-              Không yêu cầu nhập dữ liệu. Chỉ cần chạm vào tình huống bạn đang nghi ngờ:
+              Không yêu cầu nhập thông tin cá nhân. Hãy chạm vào tình huống bạn đang gặp phải:
             </p>
           </div>
 
@@ -346,7 +349,7 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
             <button
               onClick={() => setSelectedSituationId(null)}
-              className="text-xs text-blue-700 font-bold hover:underline inline-flex items-center gap-1"
+              className="text-xs text-[#004B87] font-bold hover:underline inline-flex items-center gap-1"
             >
               <span>← Chọn tình huống khác</span>
             </button>
@@ -377,7 +380,8 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
 
             {/* MUST DO STEPS (🚨 BẠN NÊN LÀM GÌ?) */}
             <div className="space-y-3 pt-2">
-              <h3 className="text-xs sm:text-sm font-black text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+              <h3 className="text-xs sm:text-sm font-black text-[#003B70] uppercase tracking-wide flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-[#004B87]" />
                 <span>🚨 BẠN NÊN LÀM GÌ NGAY BÂY GIỜ?</span>
               </h3>
               <div className="space-y-2.5">
@@ -386,9 +390,9 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
                   return (
                     <div
                       key={idx}
-                      className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3"
+                      className="p-3.5 sm:p-4 rounded-2xl bg-[#F4F7FB] border border-[#004B87]/15 flex items-start gap-3"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-blue-700 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                      <div className="w-8 h-8 rounded-xl bg-[#004B87] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                         <StepIcon className="w-4 h-4" />
                       </div>
                       <div className="space-y-1">
@@ -413,11 +417,11 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
         </div>
       )}
 
-      {/* EMERGENCY CONTACT SECTION (HOTLINE) */}
-      <div className="bg-gradient-to-br from-red-600 via-rose-600 to-red-700 text-white rounded-3xl p-5 sm:p-6 shadow-xl shadow-red-600/20 space-y-4">
+      {/* EMERGENCY CONTACT SECTION (VIETINBANK HOTLINE) */}
+      <div className="bg-gradient-to-br from-[#D32F2F] via-[#E53935] to-[#C62828] text-white rounded-3xl p-5 sm:p-6 shadow-xl shadow-red-600/25 space-y-4">
         <div className="space-y-1">
           <div className="text-[10px] font-black uppercase tracking-wider text-red-200">
-            HỖ TRỢ KHẨN CẤP 24/7
+            HỖ TRỢ KHẨN CẤP 24/7 – VIETINBANK
           </div>
           <h3 className="text-base sm:text-lg font-black leading-tight">
             CẦN TRỢ GIÚP NGAY TỪ NGÂN HÀNG?
@@ -430,14 +434,14 @@ export function SuspiciousScamScreen({ settings, onBack }: SuspiciousScamScreenP
         {/* Big Call Button */}
         <a
           href={`tel:${settings.hotline_support.replace(/\s+/g, '')}`}
-          className="w-full py-4 px-4 rounded-2xl bg-white text-red-700 hover:bg-red-50 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg active:scale-98 transition-all min-h-[52px]"
+          className="w-full py-4 px-4 rounded-2xl bg-white text-[#D32F2F] hover:bg-red-50 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg active:scale-98 transition-all min-h-[52px]"
         >
           <PhoneCall className="w-5 h-5 animate-bounce" />
           <span>📞 LIÊN HỆ NGÂN HÀNG: {settings.hotline_support}</span>
         </a>
 
         {/* Branch Details */}
-        <div className="pt-2 border-t border-red-500/60 text-[11px] text-red-100 space-y-1 font-medium">
+        <div className="pt-2 border-t border-white/20 text-[11px] text-red-100 space-y-1 font-medium">
           <div className="flex items-center gap-1.5">
             <Building className="w-3.5 h-3.5 shrink-0 text-red-200" />
             <span>
