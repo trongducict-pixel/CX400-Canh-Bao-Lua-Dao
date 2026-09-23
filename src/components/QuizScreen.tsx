@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft,
   BrainCircuit,
   CheckCircle2,
   XCircle,
@@ -9,12 +8,15 @@ import {
   ArrowRight,
   ShieldCheck,
   Award,
-  ChevronRight,
+  ArrowLeft,
   Smartphone,
   Link as LinkIcon,
   PhoneCall,
+  Clock,
+  BookOpen,
 } from 'lucide-react';
 import { QuizQuestion } from '../types';
+import { store } from '../services/store';
 
 interface QuizScreenProps {
   questions: QuizQuestion[];
@@ -39,8 +41,17 @@ export function QuizScreen({
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<Record<number, boolean>>({});
 
-  // Initialize quiz session (take 5 questions, prioritizing target story/category if present)
+  // Session Tracking & Prevention of Double Submissions
+  const [quizSessionId, setQuizSessionId] = useState<string>(() =>
+    `quiz_session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+  );
+  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [finishedAt, setFinishedAt] = useState<number | null>(null);
+  const [hasSavedResult, setHasSavedResult] = useState(false);
+
+  // Initialize quiz session
   const initQuiz = () => {
     let pool = [...questions].filter(q => q.status === 'active');
     if (pool.length === 0) return;
@@ -63,12 +74,28 @@ export function QuizScreen({
     setSelectedOption(null);
     setIsAnswered(false);
     setScore(0);
+    setUserAnswers({});
     setIsFinished(false);
+    setHasSavedResult(false);
+    setStartedAt(Date.now());
+    setFinishedAt(null);
   };
 
+  // Only re-init when target props change or on initial load
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
+    if (!hasInitializedRef.current || targetStoryId || targetCategoryId) {
+      hasInitializedRef.current = true;
+      initQuiz();
+    }
+  }, [targetStoryId, targetCategoryId]);
+
+  // Restart Quiz explicitly creating a new session
+  const handleRestartQuiz = () => {
+    const newSessionId = `quiz_session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    setQuizSessionId(newSessionId);
     initQuiz();
-  }, [questions, targetStoryId, targetCategoryId]);
+  };
 
   if (activeQuizSet.length === 0) {
     return (
@@ -97,8 +124,38 @@ export function QuizScreen({
     setSelectedOption(idx);
     setIsAnswered(true);
 
-    if (idx === currentQ.correct_answer) {
+    const isCorrect = idx === currentQ.correct_answer;
+    if (isCorrect) {
       setScore(s => s + 1);
+    }
+    setUserAnswers(prev => ({ ...prev, [currentIndex]: isCorrect }));
+  };
+
+  // Finish quiz strictly, log results once and stop
+  const finishQuiz = () => {
+    if (hasSavedResult) return;
+
+    // Calculate final score accurately from userAnswers map
+    const answerEntries = Object.entries(userAnswers);
+    const finalScore = answerEntries.filter(([, correct]) => correct).length;
+
+    // Log result to store (local storage + sync queue + audit log)
+    store.logQuizResult({
+      quiz_id: activeQuizSet[0]?.id,
+      story_id: targetStoryId,
+      total_questions: activeQuizSet.length,
+      correct_count: finalScore,
+      score_ratio: activeQuizSet.length > 0 ? finalScore / activeQuizSet.length : 0,
+      session_id: quizSessionId,
+    });
+
+    setScore(finalScore);
+    setHasSavedResult(true);
+    setFinishedAt(Date.now());
+    setIsFinished(true);
+
+    if (onCompleteQuiz) {
+      onCompleteQuiz();
     }
   };
 
@@ -108,11 +165,12 @@ export function QuizScreen({
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
-      setIsFinished(true);
-      if (onCompleteQuiz) onCompleteQuiz();
+      finishQuiz();
     }
   };
 
+  const durationSeconds = finishedAt && startedAt ? Math.max(1, Math.round((finishedAt - startedAt) / 1000)) : 0;
+  const accuracyPercent = Math.round((score / (activeQuizSet.length || 1)) * 100);
   const optionLabels = ['A', 'B', 'C', 'D'];
 
   return (
@@ -126,118 +184,129 @@ export function QuizScreen({
           <ArrowLeft className="w-4 h-4" />
           <span>← Trang chủ</span>
         </button>
-        <span className="text-[11px] font-black uppercase text-[#004B87] tracking-wider">
-          TRẮC NGHIỆM NHẬN DIỆN – VIETINBANK
+
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+          {isFinished ? 'KẾT QUẢ' : `CÂU ${currentIndex + 1} / ${activeQuizSet.length}`}
         </span>
       </div>
 
+      {/* Main Quiz Flow */}
       {!isFinished ? (
-        /* QUESTION VIEW: 1 QUESTION PER SCREEN */
         <div className="space-y-4">
-          {/* Progress Indicator */}
-          <div className="bg-[#004B87]/5 border border-[#004B87]/20 rounded-2xl p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BrainCircuit className="w-5 h-5 text-[#004B87]" />
-              <span className="text-xs sm:text-sm font-black text-[#003B70] uppercase tracking-wide">
-                CÂU HỎI {currentIndex + 1} / {activeQuizSet.length}
-              </span>
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-[#003B70] via-[#004B87] to-[#005A9C] text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                  <BrainCircuit className="w-6 h-6 text-amber-300" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase font-extrabold tracking-wider text-amber-300">
+                    Phản xạ tình huống
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-black">TRẮC NGHIỆM AN TOÀN SỐ</h2>
+                </div>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-md font-mono text-xs font-bold border border-white/20">
+                {currentIndex + 1}/{activeQuizSet.length}
+              </div>
             </div>
-            <div className="flex gap-1.5">
-              {activeQuizSet.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 rounded-full transition-all ${
-                    i === currentIndex
-                      ? 'w-6 bg-[#004B87]'
-                      : i < currentIndex
-                      ? 'w-2 bg-[#00A3E0]'
-                      : 'w-2 bg-slate-200'
-                  }`}
-                />
-              ))}
+
+            {/* Progress Bar */}
+            <div className="w-full bg-white/20 h-2 rounded-full mt-4 overflow-hidden">
+              <div
+                className="bg-amber-400 h-full transition-all duration-300 rounded-full"
+                style={{ width: `${((currentIndex + (isAnswered ? 1 : 0)) / activeQuizSet.length) * 100}%` }}
+              />
             </div>
           </div>
 
-          {/* Question Box */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs space-y-5">
-            <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-              {currentQ.question}
-            </h2>
+          {/* Question Body */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-md p-5 sm:p-6 space-y-5">
+            <div className="space-y-2">
+              <div className="text-xs font-black text-[#004B87] uppercase tracking-wider">
+                TÌNH HUỐNG {currentIndex + 1}
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                {currentQ.question}
+              </h3>
+            </div>
 
-            {/* Answer Options */}
+            {/* Options */}
             <div className="space-y-2.5">
               {currentQ.options.map((opt, idx) => {
-                let btnStyle = 'bg-slate-50 border-slate-200 hover:border-[#004B87] hover:bg-[#004B87]/5 text-slate-800';
+                let btnStyle =
+                  'border-slate-200 bg-white hover:border-[#004B87] hover:bg-slate-50 text-slate-800 shadow-xs';
+                let icon = null;
 
                 if (isAnswered) {
                   if (idx === currentQ.correct_answer) {
-                    btnStyle = 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold';
-                  } else if (selectedOption === idx) {
-                    btnStyle = 'bg-red-50 border-red-500 text-red-950 font-bold';
+                    btnStyle = 'border-emerald-500 bg-emerald-50 text-emerald-950 shadow-sm';
+                    icon = <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />;
+                  } else if (idx === selectedOption) {
+                    btnStyle = 'border-rose-500 bg-rose-50 text-rose-950 shadow-sm';
+                    icon = <XCircle className="w-5 h-5 text-rose-600 shrink-0" />;
                   } else {
-                    btnStyle = 'bg-slate-50 border-slate-200 text-slate-400 opacity-60';
+                    btnStyle = 'border-slate-100 bg-slate-50 text-slate-400 opacity-60';
                   }
                 }
 
                 return (
                   <button
                     key={idx}
+                    type="button"
                     disabled={isAnswered}
                     onClick={() => handleSelectOption(idx)}
-                    className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center gap-3.5 active:scale-98 min-h-[56px] ${btnStyle}`}
+                    className={`w-full p-4 rounded-2xl border-2 text-left font-medium text-xs sm:text-sm flex items-start gap-3 transition-all ${btnStyle} min-h-[52px]`}
                   >
                     <span
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                      className={`w-6 h-6 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
                         isAnswered && idx === currentQ.correct_answer
                           ? 'bg-emerald-600 text-white'
-                          : isAnswered && selectedOption === idx
-                          ? 'bg-red-600 text-white'
-                          : 'bg-white border border-slate-300 text-slate-700'
+                          : isAnswered && idx === selectedOption
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-100 text-slate-600'
                       }`}
                     >
                       {optionLabels[idx]}
                     </span>
-                    <span className="text-xs sm:text-sm leading-relaxed">{opt}</span>
+                    <span className="flex-1 pt-0.5 leading-relaxed font-bold">{opt}</span>
+                    {icon}
                   </button>
                 );
               })}
             </div>
 
-            {/* Instant Feedback */}
+            {/* Explanation box after answer */}
             {isAnswered && (
-              <div className="space-y-4 pt-3 border-t border-slate-100 animate-in fade-in duration-150">
+              <div className="space-y-4 pt-2 animate-in fade-in duration-200">
                 <div
-                  className={`p-4 rounded-2xl border flex items-start gap-3 ${
+                  className={`p-4 rounded-2xl border ${
                     selectedOption === currentQ.correct_answer
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                      : 'bg-red-50 border-red-300 text-red-950'
+                      ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                      : 'bg-rose-50/80 border-rose-200 text-rose-900'
                   }`}
                 >
-                  {selectedOption === currentQ.correct_answer ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                  )}
-                  <div className="space-y-1">
-                    <div className="font-black text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 font-black text-xs sm:text-sm mb-1">
+                    <Sparkles className="w-4 h-4" />
+                    <span>
                       {selectedOption === currentQ.correct_answer
-                        ? '✅ CHÍNH XÁC!'
-                        : '❌ CHƯA CHÍNH XÁC!'}
-                    </div>
-                    <div className="text-xs sm:text-sm font-normal leading-relaxed">
-                      {currentQ.explanation}
-                    </div>
+                        ? 'Chính xác! Bạn rất cảnh giác.'
+                        : 'Chưa chính xác! Hãy lưu ý kinh nghiệm này:'}
+                    </span>
                   </div>
+                  <p className="text-xs sm:text-sm leading-relaxed text-slate-700 font-medium">
+                    {currentQ.explanation}
+                  </p>
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleNextQuestion}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-[#004B87]/20 active:scale-98 transition-all min-h-[48px]"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all min-h-[48px]"
                 >
                   <span>
-                    {currentIndex + 1 < activeQuizSet.length
-                      ? 'CÂU TIẾP THEO →'
-                      : 'XEM KẾT QUẢ →'}
+                    {currentIndex + 1 < activeQuizSet.length ? 'CÂU TIẾP THEO →' : 'XEM KẾT QUẢ →'}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -246,23 +315,36 @@ export function QuizScreen({
           </div>
         </div>
       ) : (
-        /* QUIZ RESULT VIEW ACCORDING TO SECTION XV */
+        /* QUIZ RESULT VIEW */
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 text-center space-y-6 shadow-xs animate-in zoom-in-95 duration-200">
           <div className="w-16 h-16 rounded-3xl bg-[#004B87]/10 text-[#004B87] flex items-center justify-center mx-auto shadow-inner">
             <Award className="w-8 h-8 text-[#004B87]" />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             <span className="text-xs font-black uppercase text-[#004B87] tracking-wider">
               KẾT QUẢ TRẮC NGHIỆM – VIETINBANK
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900">
               🎉 BẠN ĐÃ HOÀN THÀNH!
             </h2>
-            <p className="text-sm font-bold text-slate-600 pt-1">
-              Bạn trả lời đúng <span className="text-[#004B87] text-lg font-black">{score}</span> /{' '}
+            <p className="text-sm font-bold text-slate-700 pt-1">
+              Bạn trả lời đúng <span className="text-[#004B87] text-xl font-black">{score}</span> /{' '}
               {activeQuizSet.length} câu
             </p>
+
+            {/* Score & Timing Metrics */}
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm font-bold">
+              <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Tỷ lệ chính xác: {accuracyPercent}%
+              </span>
+              {durationSeconds > 0 && (
+                <span className="px-3 py-1 rounded-full bg-sky-50 text-[#004B87] border border-sky-200 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Thời gian: {durationSeconds} giây</span>
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Recommendations based on Section XV */}
@@ -287,27 +369,41 @@ export function QuizScreen({
             </div>
 
             <button
+              type="button"
               onClick={onGoToScamTypes}
               className="w-full py-3 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all mt-2 min-h-[46px]"
             >
+              <BookOpen className="w-4 h-4" />
               <span>XEM CÁC CHIÊU TRÒ NÀY →</span>
             </button>
           </div>
 
+          {/* 3 Main Action Buttons: LÀM LẠI QUIZ, XEM CÂU CHUYỆN, VỀ TRANG CHỦ */}
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <button
-              onClick={initQuiz}
-              className="flex-1 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[46px]"
+              type="button"
+              onClick={handleRestartQuiz}
+              className="flex-1 py-3 px-4 rounded-2xl bg-[#004B87] hover:bg-[#003B70] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[46px]"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Làm lại Quiz</span>
             </button>
 
             <button
+              type="button"
+              onClick={onGoToScamTypes}
+              className="flex-1 py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[46px]"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Xem câu chuyện</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onBack}
               className="flex-1 py-3 px-4 rounded-2xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors min-h-[46px]"
             >
-              <span>Về Trang chủ</span>
+              <span>← Trang chủ</span>
             </button>
           </div>
         </div>

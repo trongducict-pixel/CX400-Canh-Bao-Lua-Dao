@@ -177,7 +177,7 @@ export interface QuizResultLog {
 
 export interface SyncQueueItem {
   id: string;
-  entity_type: 'STORY' | 'CUSTOMER_SUBMISSION' | 'ALERT' | 'CATEGORY' | 'QUIZ' | 'SETTINGS' | 'USER' | 'AUDIT';
+  entity_type: 'STORY' | 'CUSTOMER_SUBMISSION' | 'ALERT' | 'CATEGORY' | 'QUIZ' | 'SETTINGS' | 'USER' | 'AUDIT' | 'QUIZ_RESULT';
   entity_id: string;
   operation: 'CREATE' | 'UPDATE' | 'DELETE';
   payload: any;

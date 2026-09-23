@@ -11,6 +11,7 @@ import {
   Award,
 } from 'lucide-react';
 import { QuizQuestion } from '../types';
+import { store } from '../services/store';
 
 interface QuizSectionProps {
   questions: QuizQuestion[];
@@ -91,6 +92,14 @@ export function QuizSection({
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
+      store.logQuizResult({
+        quiz_id: activeQuizSet[0]?.id,
+        story_id: targetStoryId,
+        total_questions: activeQuizSet.length,
+        correct_count: score,
+        score_ratio: activeQuizSet.length > 0 ? score / activeQuizSet.length : 0,
+        session_id: `quiz_session_${Date.now()}`,
+      });
       setIsFinished(true);
       onCompleteQuiz();
     }

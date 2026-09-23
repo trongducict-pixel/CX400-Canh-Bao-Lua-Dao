@@ -145,12 +145,16 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
         alerts: data.alerts,
         quizzes: data.quizzes,
         customerSubmissions: data.customer_submissions,
+        settings: data.settings,
+        analytics: data.analytics,
+        quizResults: data.quiz_results,
+        auditLogs: data.audit_logs,
       });
       // Also process pending sync queue if any
-      await processSyncQueue();
+      const queueRes = await processSyncQueue();
       setSyncStatus({
         type: 'success',
-        message: `Đồng bộ thành công! Đã nạp ${data.stories?.length || 0} bài học, ${data.customer_submissions?.length || 0} câu chuyện khách hàng, ${data.alerts?.length || 0} cảnh báo, ${data.quizzes?.length || 0} câu hỏi trắc nghiệm từ Google Sheet.`,
+        message: `Đồng bộ thành công! Đã nạp ${data.stories?.length || 0} bài học, ${data.customer_submissions?.length || 0} câu chuyện khách hàng, ${data.alerts?.length || 0} cảnh báo, ${data.quizzes?.length || 0} câu hỏi trắc nghiệm, ${data.quiz_results?.length || 0} kết quả quiz. (Đã xử lý ${queueRes.processedCount} lệnh đợi)`,
       });
     } catch (err: any) {
       console.error('Fast sync error:', err);
@@ -244,6 +248,8 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
         quizzes,
         settings,
         analytics,
+        quizResults: store.getQuizResults(),
+        auditLogs: store.getAuditLogs(),
       });
       await processSyncQueue(newConfig.spreadsheetId);
       store.setLastSyncTime(new Date().toISOString());
@@ -331,20 +337,22 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
           quizzes,
           settings,
           analytics,
+          quizResults: store.getQuizResults(),
+          auditLogs: store.getAuditLogs(),
         });
-        await processSyncQueue(sheetConfig.spreadsheetId);
+        const queueRes = await processSyncQueue(sheetConfig.spreadsheetId);
         store.setLastSyncTime(new Date().toISOString());
         setSyncStatus({
           type: 'success',
-          message: 'Đã đẩy toàn bộ dữ liệu lên Google Sheet thành công (cập nhật theo cơ chế Upsert ID)!',
+          message: `Đã đẩy toàn bộ dữ liệu lên Google Sheet thành công (cập nhật theo cơ chế Upsert ID, đã đồng bộ ${queueRes.processedCount} lệnh đợi)!`,
         });
       } else if (actionType === 'pull') {
         const imported = await pullAllDataFromSheet(sheetConfig.spreadsheetId);
         store.applySheetImport(imported);
-        await processSyncQueue(sheetConfig.spreadsheetId);
+        const queueRes = await processSyncQueue(sheetConfig.spreadsheetId);
         setSyncStatus({
           type: 'success',
-          message: `Đồng bộ thành công! Đã nạp ${imported.stories.length} câu chuyện, ${imported.customerSubmissions?.length || 0} câu chuyện khách hàng, ${imported.categories.length} danh mục, ${imported.alerts.length} cảnh báo từ Google Sheet.`,
+          message: `Đồng bộ thành công! Đã nạp ${imported.stories.length} câu chuyện, ${imported.customerSubmissions?.length || 0} câu chuyện khách hàng, ${imported.categories.length} danh mục, ${imported.alerts.length} cảnh báo, ${imported.quizResults?.length || 0} kết quả quiz từ Google Sheet.`,
         });
       } else if (actionType === 'disconnect') {
         saveStoredSheetConfig(null);
@@ -527,6 +535,53 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
                 <span>Kiểm tra link</span>
               </a>
             </div>
+          </div>
+
+          {/* SYNC QUEUE & METRICS OVERVIEW */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Tình huống</span>
+                <span className="text-sm font-black text-slate-800">{stories.length}</span>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Chia sẻ KH</span>
+                <span className="text-sm font-black text-slate-800">{store.getCustomerSubmissions().length}</span>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Kết quả Quiz</span>
+                <span className="text-sm font-black text-[#004B87]">{store.getQuizResults().length}</span>
+              </div>
+              <div
+                className={`p-2.5 rounded-2xl border ${
+                  store.getSyncQueue().length > 0
+                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                    : 'bg-slate-50 border-slate-200 text-slate-800'
+                }`}
+              >
+                <span className="text-[10px] font-bold uppercase block">Chờ đồng bộ</span>
+                <span className="text-sm font-black">{store.getSyncQueue().length}</span>
+              </div>
+            </div>
+
+            {store.getSyncQueue().length > 0 && (
+              <button
+                onClick={async () => {
+                  setIsSyncing(true);
+                  const res = await processSyncQueue();
+                  setIsSyncing(false);
+                  setSyncStatus({
+                    type: 'success',
+                    message: `Đã xử lý ${res.processedCount} bản ghi trong hàng đợi đồng bộ.`,
+                  });
+                }}
+                disabled={isSyncing}
+                className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>Đồng bộ ngay {store.getSyncQueue().length} bản ghi đang chờ</span>
+              </button>
+            )}
           </div>
 
           {/* STEP 1: Google Account Authentication */}

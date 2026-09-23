@@ -539,17 +539,37 @@ export const store = {
   getQuizResults(): QuizResultLog[] {
     return quizResultsCache;
   },
-  logQuizResult(result: Omit<QuizResultLog, 'id' | 'timestamp'>) {
+  logQuizResult(result: Omit<QuizResultLog, 'id' | 'timestamp'>): QuizResultLog {
     const log: QuizResultLog = {
       ...result,
-      id: `qres_${Date.now()}`,
+      id: `qres_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toISOString(),
     };
     quizResultsCache = [log, ...quizResultsCache.slice(0, 499)];
     safeSetItem(STORAGE_KEYS.QUIZ_RESULTS, quizResultsCache);
 
+    // Add to sync queue for Google Sheets sync
+    this.addToSyncQueue({
+      entity_type: 'QUIZ_RESULT',
+      entity_id: log.id,
+      operation: 'CREATE',
+      payload: log,
+    });
+
+    // Add audit log
+    this.addAuditLog({
+      user_id: currentUserCache?.id || 'anonymous_customer',
+      user_name: currentUserCache?.full_name || 'Khách hàng',
+      role: currentUserCache?.role || 'CUSTOMER',
+      action: 'QUIZ_COMPLETE',
+      entity_type: 'QUIZ_RESULT',
+      entity_id: log.id,
+      description: `Hoàn thành trắc nghiệm: Đúng ${log.correct_count}/${log.total_questions} (${Math.round(log.score_ratio * 100)}%)`,
+    });
+
     this.trackEvent('quiz');
     notify();
+    return log;
   },
 
   // Sync Queue (Offline Resilient)
@@ -859,6 +879,8 @@ export const store = {
     analytics?: Partial<AnalyticsData>;
     customerSubmissions?: CustomerStorySubmission[];
     users?: Partial<User>[];
+    quizResults?: QuizResultLog[];
+    auditLogs?: AuditLog[];
   }) {
     if (data.stories && data.stories.length > 0) {
       // Safe upsert by ID to preserve local entries and not blindly destroy
@@ -916,6 +938,18 @@ export const store = {
     if (data.analytics && Object.keys(data.analytics).length > 0) {
       analyticsCache = { ...analyticsCache, ...data.analytics };
       safeSetItem(STORAGE_KEYS.ANALYTICS, analyticsCache);
+    }
+    if (data.quizResults && data.quizResults.length > 0) {
+      const map = new Map<string, QuizResultLog>(quizResultsCache.map(r => [r.id, r]));
+      data.quizResults.forEach(r => map.set(r.id, r));
+      quizResultsCache = Array.from(map.values()).slice(0, 500);
+      safeSetItem(STORAGE_KEYS.QUIZ_RESULTS, quizResultsCache);
+    }
+    if (data.auditLogs && data.auditLogs.length > 0) {
+      const map = new Map<string, AuditLog>(auditLogCache.map(a => [a.id, a]));
+      data.auditLogs.forEach(a => map.set(a.id, a));
+      auditLogCache = Array.from(map.values()).slice(0, 500);
+      safeSetItem(STORAGE_KEYS.AUDIT_LOG, auditLogCache);
     }
     this.setLastSyncTime(new Date().toISOString());
     notify();

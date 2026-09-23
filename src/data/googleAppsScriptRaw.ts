@@ -9,7 +9,11 @@ export const GOOGLE_APPS_SCRIPT_CODE_RAW = `/**
  * 2. Trên thanh menu, chọn: Tiện ích mở rộng (Extensions) -> Apps Script.
  * 3. Xóa hết code mặc định trong file Code.gs và dán toàn bộ đoạn mã bên dưới vào.
  * 4. Nhấn nút "Lưu dự án" (biểu tượng đĩa mềm 💾 hoặc Ctrl + S).
- * 5. Tải lại trang Google Sheet, bạn sẽ thấy menu mới: "🛡️ VIETINBANK CX400".
+ * 5. Nhấn "Triển khai" (Deploy) -> "Bản triển khai mới" (New deployment).
+ *    - Chọn loại: "Ứng dụng web" (Web app)
+ *    - Người thực thi: "Tôi" (Me)
+ *    - Người có quyền truy cập: "Bất kỳ ai" (Anyone)
+ * 6. Sao chép URL Web App vừa tạo và dán vào ứng dụng CX400.
  * ==============================================================================
  */
 
@@ -104,166 +108,92 @@ function formatAllSheets() {
     }
   });
 
-  SpreadsheetApp.getUi().alert('✅ Đã định dạng toàn bộ các bảng tính thành công theo quy chuẩn VietinBank!');
+  SpreadsheetApp.getUi().alert('✅ Đã định dạng thành công toàn bộ bảng theo nhận diện thương hiệu VietinBank!');
 }
 
 /**
- * 2. KIỂM TRA HỢP LỆ DỮ LIỆU TRÁNH THIẾU THÔNG TIN
+ * 2. KIỂM TRA HỢP LỆ DỮ LIỆU
  */
 function validateAllData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const errors = [];
-
-  // Kiểm tra Sheet Cau_Chuyen
+  
   const storySheet = ss.getSheetByName('Cau_Chuyen');
   if (storySheet && storySheet.getLastRow() > 1) {
-    const stories = storySheet.getRange(2, 1, storySheet.getLastRow() - 1, 15).getValues();
-    stories.forEach((row, idx) => {
-      const line = idx + 2;
-      if (!row[0]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu ID');
-      if (!row[1]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu Tiêu đề câu chuyện');
-      if (!row[4]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu nội dung Tình huống xảy ra');
-    });
-  }
-
-  // Kiểm tra Sheet Quiz
-  const quizSheet = ss.getSheetByName('Quiz');
-  if (quizSheet && quizSheet.getLastRow() > 1) {
-    const quizzes = quizSheet.getRange(2, 1, quizSheet.getLastRow() - 1, 10).getValues();
-    quizzes.forEach((row, idx) => {
-      const line = idx + 2;
-      if (!row[1]) errors.push('Quiz - Dòng ' + line + ': Thiếu Câu hỏi');
-      if (row[6] === '' || isNaN(Number(row[6])) || Number(row[6]) < 0 || Number(row[6]) > 3) {
-        errors.push('Quiz - Dòng ' + line + ': Chỉ số đáp án đúng phải là số 0, 1, 2 hoặc 3 (0=Đáp án 1, 1=Đáp án 2,...)');
-      }
+    const data = storySheet.getRange(2, 1, storySheet.getLastRow() - 1, 12).getValues();
+    data.forEach((row, idx) => {
+      const rowNum = idx + 2;
+      if (!row[0]) errors.push(\`[Cau_Chuyen] Dòng \${rowNum}: Thiếu mã ID.\`);
+      if (!row[1]) errors.push(\`[Cau_Chuyen] Dòng \${rowNum}: Thiếu tiêu đề tình huống.\`);
     });
   }
 
   const ui = SpreadsheetApp.getUi();
   if (errors.length === 0) {
-    ui.alert('🎉 Xuất sắc! Tất cả dữ liệu hợp lệ và sẵn sàng đồng bộ vào ứng dụng CX400.');
+    ui.alert('🎉 Dữ liệu hoàn toàn hợp lệ! Không phát hiện lỗi cấu trúc.');
   } else {
-    ui.alert('⚠️ Phát hiện ' + errors.length + ' cảnh báo:\\n\\n- ' + errors.slice(0, 10).join('\\n- ') + (errors.length > 10 ? '\\n... và các lỗi khác' : ''));
+    ui.alert('⚠️ Phát hiện ' + errors.length + ' vấn đề:\\n\\n' + errors.slice(0, 10).join('\\n'));
   }
 }
 
 /**
- * 3. THÊM TÌNH HUỐNG LỪA ĐẢO MẪU MỚI
+ * Helper: Upsert row by ID into any sheet
  */
-function addNewStoryTemplate() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Cau_Chuyen');
-  if (!sheet) {
-    formatAllSheets();
-    sheet = ss.getSheetByName('Cau_Chuyen');
+function upsertRowInSheet(sheet, id, rowValues) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    sheet.appendRow(rowValues);
+    return;
   }
 
-  const newId = 'story_' + new Date().getTime();
-  const now = new Date().toISOString();
-
-  sheet.appendRow([
-    newId,
-    'Giả danh Cán bộ Ngân hàng gọi điện yêu cầu cung cấp mã OTP để nâng cấp hạn mức',
-    'cat_gia_danh',
-    'RAT_CAO',
-    'Khách hàng nhận được cuộc gọi tự xưng là cán bộ trung tâm thẻ VietinBank thông báo hỗ trợ nâng hạn mức tín dụng gấp...',
-    'Kẻ gian gọi điện dẫn dắt nạn nhân vào trang web giả mạo rồi yêu cầu đọc mã OTP gửi về máy điện thoại.',
-    'Yêu cầu đọc OTP || Thúc ép chuyển tiền nhanh || Tự xưng nhân viên ngân hàng yêu cầu mật khẩu',
-    'Tuyệt đối không cung cấp OTP cho bất kỳ ai || Bấm SOS trên app CX400 || Gọi hotline 1900 558 868',
-    'Ngân hàng không bao giờ gọi điện yêu cầu khách hàng cung cấp mã OTP hay mật khẩu tài khoản.',
-    'Cán bộ DVKH Ninh Bình',
-    'PUBLISHED',
-    0,
-    '',
-    '',
-    'OFFICIAL',
-    '',
-    0,
-    now
-  ]);
-
-  SpreadsheetApp.getUi().alert('✅ Đã thêm 1 dòng mẫu mới tại sheet [Cau_Chuyen] với ID: ' + newId);
-}
-
-/**
- * 4. THÊM CẢNH BÁO MẪU MỚI
- */
-function addNewAlertTemplate() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Canh_Bao');
-  if (!sheet) return;
-
-  const newId = 'alert_' + new Date().getTime();
-  const now = new Date().toISOString();
-
-  sheet.appendRow([
-    newId,
-    'Cảnh báo: Chiêu trò giả mạo thông báo trúng thưởng Tết tri ân khách hàng',
-    'Gần đây xuất hiện các đối tượng gửi tin nhắn SMS Brandname giả mạo VietinBank thông báo trúng thưởng xe máy, sổ tiết kiệm...',
-    'KHAN_CAP',
-    'active',
-    '',
-    now
-  ]);
-
-  SpreadsheetApp.getUi().alert('✅ Đã thêm 1 cảnh báo mới tại sheet [Canh_Bao].');
-}
-
-/**
- * 5. THÊM CÂU HỎI QUIZ MẪU MỚI
- */
-function addNewQuizTemplate() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Quiz');
-  if (!sheet) return;
-
-  const newId = 'quiz_' + new Date().getTime();
-
-  sheet.appendRow([
-    newId,
-    'Nếu có người gọi điện tự xưng Công an yêu cầu cài App để điều tra án, bạn cần làm gì?',
-    'Làm theo ngay vì sợ bị bắt',
-    'Tắt máy ngay và ra Công an phường/xã gần nhất xác minh',
-    'Chuyển tiền vào tài khoản an toàn theo hướng dẫn',
-    'Cung cấp mật khẩu iPay để họ chứng minh vô tội',
-    1,
-    'Cơ quan Công an không bao giờ làm việc qua điện thoại hay yêu cầu chuyển tiền/cài phần mềm lạ.',
-    '',
-    'active'
-  ]);
-
-  SpreadsheetApp.getUi().alert('✅ Đã thêm 1 câu hỏi mới tại sheet [Quiz].');
-}
-
-/**
- * 6. CẬP NHẬT THỜI GIAN ĐỒNG BỘ GẦN NHẤT
- */
-function updateLastSyncTime() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Thong_Ke');
-  if (!sheet) return;
-
-  const nowStr = Utilities.formatDate(new Date(), 'GMT+7', 'dd/MM/yyyy HH:mm:ss');
-  const values = sheet.getDataRange().getValues();
-  let updated = false;
-
-  for (let i = 1; i < values.length; i++) {
-    if (values[i][0] === 'last_sync_time' || values[i][0] === 'last_sync') {
-      sheet.getRange(i + 1, 2).setValue(nowStr);
-      updated = true;
-      break;
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim() === String(id).trim()) {
+      sheet.getRange(i + 2, 1, 1, rowValues.length).setValues([rowValues]);
+      return;
     }
   }
 
-  if (!updated) {
-    sheet.appendRow(['last_sync_time', nowStr, 'Thời điểm đồng bộ gần nhất']);
+  sheet.appendRow(rowValues);
+}
+
+/**
+ * Helper: Upsert key-value in Cai_Dat
+ */
+function upsertSetting(sheet, key, value, desc) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    sheet.appendRow([key, value, desc || '']);
+    return;
   }
 
+  const keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < keys.length; i++) {
+    if (String(keys[i][0]).trim() === String(key).trim()) {
+      sheet.getRange(i + 2, 2).setValue(value);
+      if (desc) sheet.getRange(i + 2, 3).setValue(desc);
+      return;
+    }
+  }
+
+  sheet.appendRow([key, value, desc || '']);
+}
+
+/**
+ * Cập nhật thời điểm đồng bộ
+ */
+function updateLastSyncTime() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Cai_Dat');
+  if (!sheet) sheet = ss.insertSheet('Cai_Dat');
+
+  const nowStr = new Date().toISOString();
+  upsertSetting(sheet, 'last_sync_time', nowStr, 'Thời điểm đồng bộ gần nhất');
   SpreadsheetApp.getUi().alert('🕒 Đã ghi nhận thời gian đồng bộ: ' + nowStr);
 }
 
 /**
- * 7. HỘP THOẠI HƯỚNG DẪN SỬ DỤNG
+ * Hướng dẫn sử dụng
  */
 function showUserGuide() {
   const ui = SpreadsheetApp.getUi();
@@ -277,14 +207,18 @@ function showUserGuide() {
     '   - Danh_Muc: Các nhóm loại lừa đảo.\\n' +
     '   - Quiz: Câu hỏi trắc nghiệm rèn luyện phản xạ.\\n' +
     '   - Cai_Dat: Số Hotline và thông tin tiếp đón khách hàng chi nhánh.\\n' +
-    '   - Thong_Ke: Báo cáo lượt tương tác.\\n\\n' +
+    '   - Thong_Ke: Báo cáo lượt tương tác.\\n' +
+    '   - Ket_Qua_Quiz: Nhật ký kết quả làm quiz của khách hàng.\\n' +
+    '   - Nhat_Ky_Audit: Lịch sử thao tác kiểm soát nội bộ.\\n\\n' +
     '3. Sau khi chỉnh sửa nội dung trên Google Sheet, vào ứng dụng web CX400 bấm "Đồng bộ từ Google Sheet" để cập nhật ngay!';
     
   ui.alert(msg);
 }
 
 /**
- * 8. API WEB APP: Đọc toàn bộ dữ liệu dưới dạng JSON qua HTTP GET
+ * ==============================================================================
+ * 8. API WEB APP: ĐỌC DỮ LIỆU TOÀN DIỆN DƯỚI DẠNG JSON (HTTP GET)
+ * ==============================================================================
  */
 function doGet(e) {
   try {
@@ -294,102 +228,181 @@ function doGet(e) {
       generated_at: new Date().toISOString(),
       bank: 'VietinBank Ninh Bình',
       department: 'Phòng DVKH',
-      data: {}
+      data: {
+        stories: [],
+        customer_submissions: [],
+        alerts: [],
+        categories: [],
+        quizzes: [],
+        settings: {},
+        analytics: {},
+        quiz_results: [],
+        audit_logs: []
+      }
     };
 
-    // Đọc Cau_Chuyen
+    // 1. Cau_Chuyen
     const storySheet = ss.getSheetByName('Cau_Chuyen');
     if (storySheet && storySheet.getLastRow() > 1) {
-      const rows = storySheet.getRange(2, 1, storySheet.getLastRow() - 1, 18).getValues();
-      result.data.stories = rows.filter(r => r[1]).map(r => ({
+      const rows = storySheet.getRange(2, 1, storySheet.getLastRow() - 1, 24).getValues();
+      result.data.stories = rows.filter(r => r && r[1]).map(r => ({
         id: r[0],
         title: r[1],
         category_id: r[2],
         risk_level: r[3],
         situation: r[4],
         scam_method: r[5],
-        warning_signs: r[6] ? String(r[6]).split('||').map(s => s.trim()) : [],
-        recommended_action: r[7] ? String(r[7]).split('||').map(s => s.trim()) : [],
+        warning_signs: r[6] ? String(r[6]).split('||').map(s => s.trim()).filter(Boolean) : [],
+        recommended_action: r[7] ? String(r[7]).split('||').map(s => s.trim()).filter(Boolean) : [],
         lesson: r[8],
-        author_name: r[9],
-        status: r[10],
-        views_count: Number(r[11]) || 0,
-        image_url: r[12] || '',
-        rejection_note: r[13] || '',
-        source_type: r[14] || 'OFFICIAL',
-        source_submission_id: r[15] || '',
-        helpful_votes: Number(r[16]) || 0,
-        updated_at: r[17] || ''
+        author_id: r[9] || 'cbo_vietinbank',
+        author_name: r[10] || 'Cán bộ VietinBank',
+        status: r[11] || 'PUBLISHED',
+        views_count: Number(r[12]) || 0,
+        image_url: r[13] || '',
+        rejection_note: r[14] || '',
+        source_type: r[15] || 'OFFICIAL',
+        source_submission_id: r[16] || '',
+        helpful_votes: Number(r[17]) || 0,
+        created_at: r[18] || r[19] || new Date().toISOString(),
+        updated_at: r[19] || new Date().toISOString(),
+        submitted_at: r[20] || '',
+        approved_by: r[21] || '',
+        approved_at: r[22] || '',
+        published_at: r[23] || (r[11] === 'PUBLISHED' ? r[19] || '' : '')
       }));
     }
 
-    // Đọc Khach_Hang_Chia_Se
+    // 2. Khach_Hang_Chia_Se
     const customerSheet = ss.getSheetByName('Khach_Hang_Chia_Se');
     if (customerSheet && customerSheet.getLastRow() > 1) {
-      const rows = customerSheet.getRange(2, 1, customerSheet.getLastRow() - 1, 21).getValues();
-      result.data.customer_submissions = rows.filter(r => r[2]).map(r => ({
+      const rows = customerSheet.getRange(2, 1, customerSheet.getLastRow() - 1, 23).getValues();
+      result.data.customer_submissions = rows.filter(r => r && r[2]).map(r => ({
         id: r[0],
         submitted_at: r[1],
         raw_title: r[2],
         raw_content: r[3],
-        scam_method: r[4],
-        customer_action: r[5],
-        customer_lesson: r[6],
-        category_id: r[7],
+        scam_method: r[4] || '',
+        customer_action: r[5] || '',
+        customer_lesson: r[6] || '',
+        category_id: r[7] || 'cat_congan',
         is_anonymous: String(r[8]).toUpperCase() === 'TRUE',
-        display_name: r[9],
-        contact_phone: r[10],
-        contact_email: r[11],
-        status: r[12],
-        reviewed_by: r[13],
-        reviewed_at: r[14],
-        review_note: r[15],
-        published_story_id: r[16],
-        edited_title: r[17],
-        edited_situation: r[18],
-        edited_scam_method: r[19],
-        edited_lesson: r[20]
+        display_name: r[9] || '',
+        contact_phone: r[10] || '',
+        contact_email: r[11] || '',
+        status: r[12] || 'PENDING_REVIEW',
+        reviewed_by: r[13] || '',
+        reviewed_at: r[14] || '',
+        review_note: r[15] || '',
+        published_story_id: r[16] || '',
+        edited_title: r[17] || '',
+        edited_situation: r[18] || '',
+        edited_scam_method: r[19] || '',
+        edited_lesson: r[20] || '',
+        created_at: r[21] || r[1] || new Date().toISOString(),
+        updated_at: r[22] || r[14] || r[1] || new Date().toISOString()
       }));
     }
 
-    // Đọc Canh_Bao
+    // 3. Canh_Bao
     const alertSheet = ss.getSheetByName('Canh_Bao');
     if (alertSheet && alertSheet.getLastRow() > 1) {
       const rows = alertSheet.getRange(2, 1, alertSheet.getLastRow() - 1, 7).getValues();
-      result.data.alerts = rows.filter(r => r[1]).map(r => ({
+      result.data.alerts = rows.filter(r => r && r[1]).map(r => ({
         id: r[0],
         title: r[1],
         content: r[2],
         risk_level: r[3],
-        status: r[4],
-        created_at: r[6]
+        status: r[4] || 'active',
+        image_url: r[5] || '',
+        created_at: r[6] || new Date().toISOString()
       }));
     }
 
-    // Đọc Danh_Muc
+    // 4. Danh_Muc
     const catSheet = ss.getSheetByName('Danh_Muc');
     if (catSheet && catSheet.getLastRow() > 1) {
       const rows = catSheet.getRange(2, 1, catSheet.getLastRow() - 1, 5).getValues();
-      result.data.categories = rows.filter(r => r[1]).map(r => ({
+      result.data.categories = rows.filter(r => r && r[1]).map(r => ({
         id: r[0],
         name: r[1],
-        icon: r[2],
-        description: r[3],
-        status: r[4]
+        icon: r[2] || 'AlertTriangle',
+        description: r[3] || '',
+        status: r[4] || 'active'
       }));
     }
 
-    // Đọc Quiz
+    // 5. Quiz
     const quizSheet = ss.getSheetByName('Quiz');
     if (quizSheet && quizSheet.getLastRow() > 1) {
       const rows = quizSheet.getRange(2, 1, quizSheet.getLastRow() - 1, 10).getValues();
-      result.data.quizzes = rows.filter(r => r[1]).map(r => ({
+      result.data.quizzes = rows.filter(r => r && r[1]).map(r => ({
         id: r[0],
         question: r[1],
         options: [r[2], r[3], r[4], r[5]].filter(Boolean),
         correct_answer: Number(r[6]) || 0,
-        explanation: r[7],
-        status: r[9]
+        explanation: r[7] || '',
+        story_id: r[8] || '',
+        status: r[9] || 'active'
+      }));
+    }
+
+    // 6. Cai_Dat
+    const settingsSheet = ss.getSheetByName('Cai_Dat');
+    if (settingsSheet && settingsSheet.getLastRow() > 1) {
+      const rows = settingsSheet.getRange(2, 1, settingsSheet.getLastRow() - 1, 3).getValues();
+      rows.forEach(r => {
+        if (r && r[0]) {
+          result.data.settings[r[0]] = String(r[1] || '');
+        }
+      });
+    }
+
+    // 7. Thong_Ke
+    const statsSheet = ss.getSheetByName('Thong_Ke');
+    if (statsSheet && statsSheet.getLastRow() > 1) {
+      const rows = statsSheet.getRange(2, 1, statsSheet.getLastRow() - 1, 3).getValues();
+      rows.forEach(r => {
+        if (r && r[0]) {
+          if (r[0] === 'total_views') result.data.analytics.total_views = Number(r[1]) || 0;
+          if (r[0] === 'total_quizzes_taken') result.data.analytics.total_quizzes_taken = Number(r[1]) || 0;
+          if (r[0] === 'total_sos_clicks') result.data.analytics.total_sos_clicks = Number(r[1]) || 0;
+        }
+      });
+    }
+
+    // 8. Ket_Qua_Quiz
+    const quizResSheet = ss.getSheetByName('Ket_Qua_Quiz');
+    if (quizResSheet && quizResSheet.getLastRow() > 1) {
+      const rows = quizResSheet.getRange(2, 1, quizResSheet.getLastRow() - 1, 8).getValues();
+      result.data.quiz_results = rows.filter(r => r && r[0]).map(r => ({
+        id: r[0],
+        quiz_id: r[1] || '',
+        story_id: r[2] || '',
+        total_questions: Number(r[3]) || 5,
+        correct_count: Number(r[4]) || 0,
+        score_ratio: (Number(r[5]) || 0) / 100,
+        session_id: r[6] || '',
+        timestamp: r[7] || new Date().toISOString()
+      }));
+    }
+
+    // 9. Nhat_Ky_Audit
+    const auditSheet = ss.getSheetByName('Nhat_Ky_Audit');
+    if (auditSheet && auditSheet.getLastRow() > 1) {
+      const rows = auditSheet.getRange(2, 1, auditSheet.getLastRow() - 1, 11).getValues();
+      result.data.audit_logs = rows.filter(r => r && r[0]).map(r => ({
+        id: r[0],
+        timestamp: r[1],
+        user_id: r[2],
+        user_name: r[3],
+        role: r[4],
+        action: r[5],
+        entity_type: r[6],
+        entity_id: r[7],
+        description: r[8],
+        old_status: r[9] || '',
+        new_status: r[10] || ''
       }));
     }
 
@@ -404,67 +417,178 @@ function doGet(e) {
 }
 
 /**
- * 9. API WEB APP: Xử lý dữ liệu đẩy lên (HTTP POST) theo cơ chế UPSERT theo ID
+ * ==============================================================================
+ * 9. API WEB APP: XỬ LÝ ĐẨY DỮ LIỆU LÊN (HTTP POST) THEO CƠ CHẾ UPSERT THEO ID
+ * ==============================================================================
  */
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const payload = JSON.parse(e.postData.contents);
+    let processed = 0;
+
+    // Helper ensure sheet exists
+    function getOrCreateSheet(name) {
+      let sheet = ss.getSheetByName(name);
+      if (!sheet) sheet = ss.insertSheet(name);
+      return sheet;
+    }
 
     if (payload.action === 'SYNC_QUEUE' && Array.isArray(payload.items)) {
       payload.items.forEach(item => {
-        if (item.entity === 'CUSTOMER_SUBMISSION' && item.payload) {
-          const sub = item.payload;
-          let sheet = ss.getSheetByName('Khach_Hang_Chia_Se');
-          if (!sheet) {
-            sheet = ss.insertSheet('Khach_Hang_Chia_Se');
-          }
-          
-          const data = sheet.getDataRange().getValues();
-          let foundRow = -1;
-          for (let r = 1; r < data.length; r++) {
-            if (String(data[r][0]) === String(sub.id)) {
-              foundRow = r + 1;
-              break;
-            }
-          }
+        const entityType = item.entity_type || item.entity;
+        const data = item.payload;
+        if (!data) return;
 
+        if (entityType === 'QUIZ_RESULT') {
+          const sheet = getOrCreateSheet('Ket_Qua_Quiz');
           const rowValues = [
-            sub.id,
-            sub.submitted_at || sub.created_at,
-            sub.raw_title,
-            sub.raw_content,
-            sub.scam_method || '',
-            sub.customer_action || '',
-            sub.customer_lesson || '',
-            sub.category_id,
-            sub.is_anonymous ? 'TRUE' : 'FALSE',
-            sub.display_name || '',
-            sub.contact_phone || '',
-            sub.contact_email || '',
-            sub.status,
-            sub.reviewed_by || '',
-            sub.reviewed_at || '',
-            sub.review_note || '',
-            sub.published_story_id || ''
+            data.id,
+            data.quiz_id || '',
+            data.story_id || '',
+            data.total_questions || 5,
+            data.correct_count || 0,
+            Math.round((data.score_ratio || 0) * 100),
+            data.session_id || '',
+            data.timestamp || new Date().toISOString()
           ];
-
-          if (foundRow > 0) {
-            sheet.getRange(foundRow, 1, 1, rowValues.length).setValues([rowValues]);
-          } else {
-            sheet.appendRow(rowValues);
-          }
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'AUDIT') {
+          const sheet = getOrCreateSheet('Nhat_Ky_Audit');
+          const rowValues = [
+            data.id,
+            data.timestamp || new Date().toISOString(),
+            data.user_id || '',
+            data.user_name || '',
+            data.role || '',
+            data.action || '',
+            data.entity_type || '',
+            data.entity_id || '',
+            data.description || '',
+            data.old_status || '',
+            data.new_status || ''
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'CUSTOMER_SUBMISSION') {
+          const sheet = getOrCreateSheet('Khach_Hang_Chia_Se');
+          const rowValues = [
+            data.id,
+            data.submitted_at || data.created_at || new Date().toISOString(),
+            data.raw_title,
+            data.raw_content,
+            data.scam_method || '',
+            data.customer_action || '',
+            data.customer_lesson || '',
+            data.category_id || '',
+            data.is_anonymous ? 'TRUE' : 'FALSE',
+            data.display_name || '',
+            data.contact_phone || '',
+            data.contact_email || '',
+            data.status || 'PENDING_REVIEW',
+            data.reviewed_by || '',
+            data.reviewed_at || '',
+            data.review_note || '',
+            data.published_story_id || '',
+            data.edited_title || '',
+            data.edited_situation || '',
+            data.edited_scam_method || '',
+            data.edited_lesson || '',
+            data.created_at || new Date().toISOString(),
+            data.updated_at || new Date().toISOString()
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'STORY') {
+          const sheet = getOrCreateSheet('Cau_Chuyen');
+          const rowValues = [
+            data.id,
+            data.title,
+            data.category_id,
+            data.risk_level,
+            data.situation,
+            data.scam_method,
+            (data.warning_signs || []).join(' || '),
+            (data.recommended_action || []).join(' || '),
+            data.lesson,
+            data.author_id || 'cbo_vietinbank',
+            data.author_name || 'Cán bộ VietinBank',
+            data.status,
+            data.views_count || 0,
+            data.image_url || '',
+            data.rejection_note || '',
+            data.source_type || 'OFFICIAL',
+            data.source_submission_id || '',
+            data.helpful_votes || 0,
+            data.created_at || new Date().toISOString(),
+            data.updated_at || new Date().toISOString(),
+            data.submitted_at || '',
+            data.approved_by || '',
+            data.approved_at || '',
+            data.published_at || (data.status === 'PUBLISHED' ? data.updated_at : '')
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'ALERT') {
+          const sheet = getOrCreateSheet('Canh_Bao');
+          const rowValues = [
+            data.id,
+            data.title,
+            data.content,
+            data.risk_level,
+            data.status,
+            data.image_url || '',
+            data.created_at || new Date().toISOString()
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'CATEGORY') {
+          const sheet = getOrCreateSheet('Danh_Muc');
+          const rowValues = [
+            data.id,
+            data.name,
+            data.icon,
+            data.description,
+            data.status
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'QUIZ') {
+          const sheet = getOrCreateSheet('Quiz');
+          const rowValues = [
+            data.id,
+            data.question,
+            data.options?.[0] || '',
+            data.options?.[1] || '',
+            data.options?.[2] || '',
+            data.options?.[3] || '',
+            data.correct_answer || 0,
+            data.explanation || '',
+            data.story_id || '',
+            data.status || 'active'
+          ];
+          upsertRowInSheet(sheet, data.id, rowValues);
+          processed++;
+        } else if (entityType === 'SETTINGS') {
+          const sheet = getOrCreateSheet('Cai_Dat');
+          if (data.hotline_support) upsertSetting(sheet, 'hotline_support', data.hotline_support);
+          if (data.hotline_branch) upsertSetting(sheet, 'hotline_branch', data.hotline_branch);
+          if (data.emergency_address) upsertSetting(sheet, 'emergency_address', data.emergency_address);
+          if (data.branch_name) upsertSetting(sheet, 'branch_name', data.branch_name);
+          processed++;
         }
       });
 
       return ContentService.createTextOutput(JSON.stringify({
         status: 'success',
-        processed: payload.items.length
+        processed: processed
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
     return ContentService.createTextOutput(JSON.stringify({
-      status: 'success'
+      status: 'success',
+      processed: 0
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
