@@ -11,18 +11,20 @@ import {
   MapPin,
   ExternalLink,
   Building,
+  MessageSquare,
 } from 'lucide-react';
 import { Header, VIETINBANK_LOGO_URL } from './components/Header';
 import { SuspiciousScamScreen } from './components/SuspiciousScamScreen';
 import { ScamTypesScreen } from './components/ScamTypesScreen';
 import { AlertsNewsScreen } from './components/AlertsNewsScreen';
 import { QuizScreen } from './components/QuizScreen';
+import { ShareStoryScreen } from './components/ShareStoryScreen';
 import { AdminPortal } from './components/AdminPortal';
 import { GoogleSheetsSyncModal } from './components/GoogleSheetsSyncModal';
 import { store, useStore } from './services/store';
 import { Story } from './types';
 
-export type PublicScreen = 'home' | 'suspicious' | 'scam_types' | 'alerts' | 'quiz';
+export type PublicScreen = 'home' | 'suspicious' | 'scam_types' | 'alerts' | 'quiz' | 'share_story';
 
 export default function App() {
   const {
@@ -340,6 +342,40 @@ export default function App() {
                   </span>
                 </div>
               </button>
+
+              {/* CARD 5: 💬 CHIA SẺ CÂU CHUYỆN CỦA MÌNH (Customer Story Submission) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentScreen('share_story');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full text-left p-5 sm:p-6 rounded-3xl bg-white border-2 border-teal-200 hover:border-[#004B87] hover:shadow-xl hover:shadow-teal-500/10 text-slate-900 shadow-sm active:scale-[0.98] transition-all flex flex-col justify-between group min-h-[140px]"
+              >
+                <div className="flex items-start justify-between w-full">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-[#004B87] group-hover:text-white transition-all shadow-xs border border-teal-200">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-teal-100/70 text-teal-800 font-black text-[10px] uppercase tracking-wider border border-teal-200">
+                    Cảnh giác cộng đồng
+                  </span>
+                </div>
+
+                <div className="pt-3">
+                  <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                    <span>💬 CHIA SẺ CÂU CHUYỆN CỦA MÌNH</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1 leading-relaxed">
+                    Bạn đã từng gặp một vụ lừa đảo? Hãy chia sẻ để giúp người khác cảnh giác.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end text-xs sm:text-sm font-black text-teal-800 group-hover:text-[#004B87]">
+                  <span className="group-hover:underline flex items-center gap-1">
+                    CHIA SẺ NGAY → <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+              </button>
             </div>
 
             {/* VIETINBANK OFFICIAL FOOTER INFO */}
@@ -439,6 +475,17 @@ export default function App() {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onCompleteQuiz={() => store.trackEvent('quiz')}
+          />
+        )}
+
+        {/* ======================================================== */}
+        {/* SCREEN 5: 💬 CHIA SẺ CÂU CHUYỆN CỦA MÌNH                 */}
+        {/* ======================================================== */}
+        {currentScreen === 'share_story' && (
+          <ShareStoryScreen
+            categories={categories}
+            onBack={handleGoHome}
+            onGoHome={handleGoHome}
           />
         )}
       </main>

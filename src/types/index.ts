@@ -9,6 +9,14 @@ export type StoryStatus =
 
 export type RiskLevel = 'THAP' | 'TRUNG_BINH' | 'CAO' | 'RAT_CAO';
 
+export type CustomerSubmissionStatus = 
+  | 'PENDING_REVIEW'
+  | 'UNDER_REVIEW'
+  | 'NEED_REVISION'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'REJECTED';
+
 export interface User {
   id: string;
   username: string;
@@ -18,6 +26,7 @@ export interface User {
   department: string;
   status: 'active' | 'locked';
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Story {
@@ -42,6 +51,42 @@ export interface Story {
   created_at: string;
   updated_at: string;
   views_count: number;
+  source_type?: 'STAFF' | 'CUSTOMER' | 'ADMIN';
+  source_submission_id?: string;
+  helpful_votes?: number;
+}
+
+export interface CustomerStorySubmission {
+  id: string;
+  category_id: string;
+  risk_level: RiskLevel;
+  raw_title: string;
+  raw_content: string;
+  scam_method?: string;
+  customer_action?: string;
+  customer_lesson?: string;
+  display_name?: string;
+  is_anonymous: boolean;
+  contact_email?: string;
+  contact_phone?: string;
+  image_urls?: string[];
+  status: CustomerSubmissionStatus;
+  submitted_at: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_note?: string;
+  published_story_id?: string;
+  created_at: string;
+  updated_at: string;
+  // Editorial working fields (drafted by Leader before publish)
+  edited_title?: string;
+  edited_category_id?: string;
+  edited_risk_level?: RiskLevel;
+  edited_situation?: string;
+  edited_scam_method?: string;
+  edited_warning_signs?: string[];
+  edited_recommended_action?: string[];
+  edited_lesson?: string;
 }
 
 export interface Category {
@@ -61,6 +106,8 @@ export interface QuizQuestion {
   category_id?: string;
   story_id?: string;
   status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AlertItem {
@@ -74,6 +121,7 @@ export interface AlertItem {
   status: 'active' | 'inactive';
   created_by: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface SystemSettings {
@@ -84,6 +132,10 @@ export interface SystemSettings {
   hotline_branch: string;
   emergency_address: string;
   security_notice: string;
+  app_name?: string;
+  app_slogan?: string;
+  share_story_enabled?: boolean;
+  customer_submission_notice?: string;
 }
 
 export interface AnalyticsData {
@@ -92,4 +144,45 @@ export interface AnalyticsData {
   total_sos_clicks: number;
   story_views: Record<string, number>;
   category_interest: Record<string, number>;
+  total_customer_submissions?: number;
+  pending_customer_submissions?: number;
+  published_customer_stories?: number;
+  helpful_votes?: number;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  user_id: string;
+  user_name: string;
+  role: Role | 'CUSTOMER';
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  description: string;
+  old_status?: string;
+  new_status?: string;
+}
+
+export interface QuizResultLog {
+  id: string;
+  quiz_id?: string;
+  story_id?: string;
+  total_questions: number;
+  correct_count: number;
+  score_ratio: number;
+  timestamp: string;
+  session_id: string;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  entity_type: 'STORY' | 'CUSTOMER_SUBMISSION' | 'ALERT' | 'CATEGORY' | 'QUIZ' | 'SETTINGS' | 'USER' | 'AUDIT';
+  entity_id: string;
+  operation: 'CREATE' | 'UPDATE' | 'DELETE';
+  payload: any;
+  created_at: string;
+  retry_count: number;
+  status: 'PENDING' | 'SYNCED' | 'FAILED';
+  last_error?: string;
 }

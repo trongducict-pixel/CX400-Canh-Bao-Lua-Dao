@@ -15,8 +15,11 @@ import {
   X,
   ShieldCheck,
   PhoneCall,
+  MessageSquare,
+  ThumbsUp,
 } from 'lucide-react';
 import { Category, QuizQuestion, Story, SystemSettings } from '../types';
+import { store } from '../services/store';
 
 interface AlertsNewsScreenProps {
   stories: Story[];
@@ -41,6 +44,16 @@ export function AlertsNewsScreen({
   const [selectedStory, setSelectedStory] = useState<Story | null>(selectedStoryProp || null);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
+  const [votedStories, setVotedStories] = useState<Record<string, boolean>>({});
+
+  const handleVoteHelpful = (storyId: string) => {
+    if (votedStories[storyId]) return;
+    store.voteStoryHelpful(storyId);
+    setVotedStories(prev => ({ ...prev, [storyId]: true }));
+    if (selectedStory && selectedStory.id === storyId) {
+      setSelectedStory(prev => (prev ? { ...prev, helpful_votes: (prev.helpful_votes || 0) + 1 } : prev));
+    }
+  };
 
   // Sync if prop changes
   useEffect(() => {
@@ -235,12 +248,20 @@ export function AlertsNewsScreen({
                     }}
                     className="p-5 rounded-3xl bg-white border border-slate-200 hover:border-red-400 hover:shadow-md transition-all active:scale-98 cursor-pointer shadow-xs space-y-3 group"
                   >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-sm ${badge.class}`}
-                      >
-                        {badge.label}
-                      </span>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-sm ${badge.class}`}
+                        >
+                          {badge.label}
+                        </span>
+                        {story.source_type === 'CUSTOMER' && (
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-sm bg-sky-100 text-sky-800 border border-sky-300 flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-sky-600" />
+                            <span>Khách hàng chia sẻ</span>
+                          </span>
+                        )}
+                      </div>
                       <span className="text-slate-400 font-mono text-[11px]">
                         {new Date(story.created_at).toLocaleDateString('vi-VN')}
                       </span>
@@ -281,14 +302,22 @@ export function AlertsNewsScreen({
           <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs space-y-5">
             {/* Story Header */}
             <div className="space-y-3 border-b border-slate-100 pb-4">
-              <div className="flex items-center justify-between">
-                <span
-                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-sm ${
-                    getRiskBadge(selectedStory.risk_level).class
-                  }`}
-                >
-                  {getRiskBadge(selectedStory.risk_level).label}
-                </span>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-sm ${
+                      getRiskBadge(selectedStory.risk_level).class
+                    }`}
+                  >
+                    {getRiskBadge(selectedStory.risk_level).label}
+                  </span>
+                  {selectedStory.source_type === 'CUSTOMER' && (
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-sm bg-sky-100 text-[#004B87] border border-sky-300 flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 text-[#004B87]" />
+                      <span>CÂU CHUYỆN KHÁCH HÀNG CHIA SẺ</span>
+                    </span>
+                  )}
+                </div>
                 <span className="text-slate-400 font-mono text-xs flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
                   {new Date(selectedStory.created_at).toLocaleDateString('vi-VN')}
@@ -298,6 +327,13 @@ export function AlertsNewsScreen({
               <h1 className="text-lg sm:text-2xl font-black text-slate-900 leading-snug">
                 {selectedStory.title}
               </h1>
+
+              {selectedStory.source_type === 'CUSTOMER' && (
+                <div className="text-xs font-bold text-[#004B87] flex items-center gap-1.5 bg-[#004B87]/5 px-3 py-1.5 rounded-xl border border-[#004B87]/15">
+                  <span>Người chia sẻ:</span>
+                  <span className="text-slate-800">{selectedStory.author_name || 'Khách hàng chia sẻ'}</span>
+                </div>
+              )}
 
               {/* Action Toolbar: Voice Player & Share */}
               <div className="flex items-center gap-2 pt-1">
@@ -399,6 +435,29 @@ export function AlertsNewsScreen({
               <div className="p-4 rounded-2xl bg-[#004B87]/5 border border-[#004B87]/20 text-xs sm:text-sm text-[#003B70] font-semibold leading-relaxed">
                 {selectedStory.lesson}
               </div>
+            </div>
+
+            {/* FEEDBACK INTERACTION (SECTION LVIII) */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div className="text-xs sm:text-sm font-bold text-slate-800 text-center sm:text-left">
+                Câu chuyện này có giúp bạn cảnh giác hơn không?
+              </div>
+              <button
+                type="button"
+                onClick={() => handleVoteHelpful(selectedStory.id)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs min-h-[42px] active:scale-95 ${
+                  votedStories[selectedStory.id]
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-white hover:bg-slate-100 text-[#004B87] border border-[#004B87]/30'
+                }`}
+              >
+                <ThumbsUp className="w-4 h-4" />
+                <span>
+                  {votedStories[selectedStory.id]
+                    ? 'Đã cảm ơn (Hữu ích)'
+                    : `👍 Có, rất hữu ích (${selectedStory.helpful_votes || 12})`}
+                </span>
+              </button>
             </div>
 
             {/* QUIZ HOOK LINK (SECTION XII & XXXI) */}

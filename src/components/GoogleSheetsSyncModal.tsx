@@ -37,6 +37,7 @@ import {
   getAppsScriptUrl,
   saveAppsScriptUrl,
   pullDataFromAppsScript,
+  processSyncQueue,
 } from '../services/googleSheets';
 import { store, useStore } from '../services/store';
 import { GOOGLE_APPS_SCRIPT_CODE } from '../data/googleAppsScriptCode';
@@ -138,10 +139,18 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
 
     try {
       const data = await pullDataFromAppsScript(appsScriptUrl);
-      store.applySheetImport(data);
+      store.applySheetImport({
+        stories: data.stories,
+        categories: data.categories,
+        alerts: data.alerts,
+        quizzes: data.quizzes,
+        customerSubmissions: data.customer_submissions,
+      });
+      // Also process pending sync queue if any
+      await processSyncQueue();
       setSyncStatus({
         type: 'success',
-        message: `Đồng bộ thành công! Đã nạp ${data.stories?.length || 0} bài học, ${data.alerts?.length || 0} cảnh báo, ${data.quizzes?.length || 0} câu hỏi trắc nghiệm từ Google Sheet.`,
+        message: `Đồng bộ thành công! Đã nạp ${data.stories?.length || 0} bài học, ${data.customer_submissions?.length || 0} câu chuyện khách hàng, ${data.alerts?.length || 0} cảnh báo, ${data.quizzes?.length || 0} câu hỏi trắc nghiệm từ Google Sheet.`,
       });
     } catch (err: any) {
       console.error('Fast sync error:', err);
@@ -229,12 +238,14 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
       // Immediately push current local data to this new sheet
       await pushAllDataToSheet(newConfig.spreadsheetId, {
         stories,
+        customerSubmissions: store.getCustomerSubmissions(),
         categories,
         alerts,
         quizzes,
         settings,
         analytics,
       });
+      await processSyncQueue(newConfig.spreadsheetId);
       store.setLastSyncTime(new Date().toISOString());
 
       setSyncStatus({
@@ -314,23 +325,26 @@ export function GoogleSheetsSyncModal({ isOpen, onClose }: GoogleSheetsSyncModal
       if (actionType === 'push') {
         await pushAllDataToSheet(sheetConfig.spreadsheetId, {
           stories,
+          customerSubmissions: store.getCustomerSubmissions(),
           categories,
           alerts,
           quizzes,
           settings,
           analytics,
         });
+        await processSyncQueue(sheetConfig.spreadsheetId);
         store.setLastSyncTime(new Date().toISOString());
         setSyncStatus({
           type: 'success',
-          message: 'Đã đẩy toàn bộ dữ liệu lên Google Sheet thành công!',
+          message: 'Đã đẩy toàn bộ dữ liệu lên Google Sheet thành công (cập nhật theo cơ chế Upsert ID)!',
         });
       } else if (actionType === 'pull') {
         const imported = await pullAllDataFromSheet(sheetConfig.spreadsheetId);
         store.applySheetImport(imported);
+        await processSyncQueue(sheetConfig.spreadsheetId);
         setSyncStatus({
           type: 'success',
-          message: `Đồng bộ thành công! Đã nạp ${imported.stories.length} câu chuyện, ${imported.categories.length} danh mục, ${imported.alerts.length} cảnh báo từ Google Sheet.`,
+          message: `Đồng bộ thành công! Đã nạp ${imported.stories.length} câu chuyện, ${imported.customerSubmissions?.length || 0} câu chuyện khách hàng, ${imported.categories.length} danh mục, ${imported.alerts.length} cảnh báo từ Google Sheet.`,
         });
       } else if (actionType === 'disconnect') {
         saveStoredSheetConfig(null);

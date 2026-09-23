@@ -41,6 +41,7 @@ import {
   User,
 } from '../types';
 import { store } from '../services/store';
+import { CustomerStoriesManager } from './CustomerStoriesManager';
 
 interface AdminPortalProps {
   currentUser: User | null;
@@ -366,6 +367,10 @@ export function AdminPortal({
   // Filtered stories according to roles
   const myStories = stories.filter(s => s.author_id === currentUser.id);
   const pendingStories = stories.filter(s => s.status === 'PENDING_APPROVAL');
+  const customerSubmissions = store.getCustomerSubmissions();
+  const pendingCustomerCount = customerSubmissions.filter(
+    s => s.status === 'PENDING_REVIEW' || s.status === 'UNDER_REVIEW'
+  ).length;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 overflow-hidden">
@@ -483,6 +488,24 @@ export function AdminPortal({
               Chờ duyệt ({pendingStories.length})
             </button>
             <button
+              onClick={() => setActiveTab('customer_stories')}
+              className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'customer_stories'
+                  ? 'bg-blue-700 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Khách hàng chia sẻ</span>
+              {pendingCustomerCount > 0 ? (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-500 text-white font-black animate-pulse">
+                  {pendingCustomerCount}
+                </span>
+              ) : (
+                <span className="text-[10px] opacity-70">({customerSubmissions.length})</span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('users')}
               className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === 'users'
@@ -554,6 +577,24 @@ export function AdminPortal({
               Nội dung chờ phê duyệt ({pendingStories.length})
             </button>
             <button
+              onClick={() => setActiveTab('customer_stories')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'customer_stories'
+                  ? 'bg-indigo-700 text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Khách hàng chia sẻ</span>
+              {pendingCustomerCount > 0 ? (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-500 text-white font-black animate-pulse">
+                  {pendingCustomerCount}
+                </span>
+              ) : (
+                <span className="text-[10px] opacity-70">({customerSubmissions.length})</span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveTab('stories')}
               className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === 'stories'
@@ -613,7 +654,7 @@ export function AdminPortal({
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Top Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
                 <div className="text-2xl font-black text-blue-900 font-mono">
                   {analytics.total_views.toLocaleString()}
@@ -632,7 +673,23 @@ export function AdminPortal({
                 </div>
                 <div className="text-xs text-slate-500 font-semibold mt-1">Bài chờ duyệt</div>
               </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+              <div
+                onClick={() => setActiveTab('customer_stories')}
+                className="p-4 rounded-2xl bg-teal-50/60 hover:bg-teal-50 border border-teal-200 shadow-xs cursor-pointer transition-colors"
+              >
+                <div className="text-2xl font-black text-teal-800 font-mono">
+                  {customerSubmissions.length}
+                </div>
+                <div className="text-xs text-teal-700 font-semibold mt-1 flex items-center justify-between">
+                  <span>Khách hàng gửi</span>
+                  {pendingCustomerCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-500 text-white font-black">
+                      {pendingCustomerCount} mới
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs col-span-2 sm:col-span-1">
                 <div className="text-2xl font-black text-red-600 font-mono">
                   {analytics.total_sos_clicks}
                 </div>
@@ -805,6 +862,20 @@ export function AdminPortal({
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB: CUSTOMER STORIES MANAGEMENT (ADMIN / LEADER) */}
+        {activeTab === 'customer_stories' && (
+          <CustomerStoriesManager
+            currentUser={currentUser}
+            categories={categories}
+            onOpenStoryDetail={storyId => {
+              const target = stories.find(s => s.id === storyId);
+              if (target) {
+                onPreviewStory(target);
+              }
+            }}
+          />
         )}
 
         {/* TAB: STORIES LIST (ADMIN / LEADER) */}

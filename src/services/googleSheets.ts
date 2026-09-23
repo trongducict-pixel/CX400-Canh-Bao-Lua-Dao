@@ -3,12 +3,17 @@ import {
   AlertItem,
   AnalyticsData,
   Category,
+  CustomerStorySubmission,
   QuizQuestion,
   RiskLevel,
   Story,
   StoryStatus,
+  SyncQueueItem,
   SystemSettings,
+  AuditLog,
+  QuizResultLog,
 } from '../types';
+import { store } from './store';
 
 export interface SheetSyncSummary {
   spreadsheetId: string;
@@ -16,6 +21,7 @@ export interface SheetSyncSummary {
   spreadsheetUrl: string;
   lastSyncedAt: string;
   storiesCount: number;
+  customerSubmissionsCount: number;
   categoriesCount: number;
   alertsCount: number;
   quizzesCount: number;
@@ -85,6 +91,21 @@ async function sheetsFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 /**
+ * Required Sheet Tabs in the Central Business Database
+ */
+export const REQUIRED_SHEETS = [
+  'Cau_Chuyen',
+  'Khach_Hang_Chia_Se',
+  'Canh_Bao',
+  'Danh_Muc',
+  'Quiz',
+  'Cai_Dat',
+  'Thong_Ke',
+  'Nhat_Ky_Audit',
+  'Ket_Qua_Quiz',
+];
+
+/**
  * Creates a brand new Google Spreadsheet with all required sheets
  */
 export async function createGoogleSpreadsheet(
@@ -94,14 +115,12 @@ export async function createGoogleSpreadsheet(
     properties: {
       title,
     },
-    sheets: [
-      { properties: { title: 'Cau_Chuyen', gridProperties: { frozenRowCount: 1 } } },
-      { properties: { title: 'Canh_Bao', gridProperties: { frozenRowCount: 1 } } },
-      { properties: { title: 'Danh_Muc', gridProperties: { frozenRowCount: 1 } } },
-      { properties: { title: 'Quiz', gridProperties: { frozenRowCount: 1 } } },
-      { properties: { title: 'Cai_Dat', gridProperties: { frozenRowCount: 1 } } },
-      { properties: { title: 'Thong_Ke', gridProperties: { frozenRowCount: 1 } } },
-    ],
+    sheets: REQUIRED_SHEETS.map(sheetTitle => ({
+      properties: {
+        title: sheetTitle,
+        gridProperties: { frozenRowCount: 1 },
+      },
+    })),
   };
 
   const data = await sheetsFetch('', {
@@ -126,8 +145,7 @@ export async function ensureSheetTabs(spreadsheetId: string) {
   const meta = await sheetsFetch(`/${spreadsheetId}?fields=sheets.properties.title`);
   const existingTitles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title);
 
-  const requiredSheets = ['Cau_Chuyen', 'Canh_Bao', 'Danh_Muc', 'Quiz', 'Cai_Dat', 'Thong_Ke'];
-  const missing = requiredSheets.filter(t => !existingTitles.includes(t));
+  const missing = REQUIRED_SHEETS.filter(t => !existingTitles.includes(t));
 
   if (missing.length > 0) {
     const requests = missing.map(title => ({
@@ -147,12 +165,96 @@ export async function ensureSheetTabs(spreadsheetId: string) {
 }
 
 /**
- * PUSH (EXPORT): Sync local app state up to Google Sheets
+ * Helper: Upsert rows into a sheet tab based on Column 0 (ID).
+ * If row with ID exists: Updates that exact row.
+ * If row does not exist: Appends to the bottom.
+ * Preserves other rows (NEVER wipes the whole sheet!).
+ */
+async function upsertSheetRows(
+  spreadsheetId: string,
+  sheetTitle: string,
+  headerRow: string[],
+  rowsData: (string | number | boolean)[][]
+) {
+  // 1. Fetch existing rows to map IDs
+  const res = await sheetsFetch(`/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A:Z`).catch(() => ({}));
+  const existingValues: any[][] = res.values || [];
+
+  // If sheet is completely empty, initialize header
+  if (existingValues.length === 0) {
+    await sheetsFetch(`/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A1:USER_ENTERED`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        values: [headerRow, ...rowsData],
+      }),
+    });
+    return;
+  }
+
+  // Ensure header row is at row 1
+  const currentHeader = existingValues[0];
+  if (!currentHeader || currentHeader.length === 0) {
+    await sheetsFetch(`/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A1:USER_ENTERED`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [headerRow] }),
+    });
+  }
+
+  // Build index map: id -> 1-based row number
+  const idToRowIndex = new Map<string, number>();
+  for (let r = 1; r < existingValues.length; r++) {
+    const rowId = existingValues[r]?.[0];
+    if (rowId) {
+      idToRowIndex.set(String(rowId).trim(), r + 1); // 1-indexed for Sheet range
+    }
+  }
+
+  const updateRequests: { range: string; values: any[][] }[] = [];
+  const appendRows: any[][] = [];
+
+  for (const row of rowsData) {
+    const id = String(row[0]).trim();
+    if (idToRowIndex.has(id)) {
+      const rowNum = idToRowIndex.get(id)!;
+      updateRequests.push({
+        range: `${sheetTitle}!A${rowNum}`,
+        values: [row],
+      });
+    } else {
+      appendRows.push(row);
+    }
+  }
+
+  // Execute updates
+  if (updateRequests.length > 0) {
+    await sheetsFetch(`/${spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: updateRequests,
+      }),
+    });
+  }
+
+  // Execute appends
+  if (appendRows.length > 0) {
+    await sheetsFetch(`/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A:append?valueInputOption=USER_ENTERED`, {
+      method: 'POST',
+      body: JSON.stringify({
+        values: appendRows,
+      }),
+    });
+  }
+}
+
+/**
+ * PUSH (EXPORT): Upsert local app state up to Google Sheets without wiping existing data!
  */
 export async function pushAllDataToSheet(
   spreadsheetId: string,
   payload: {
     stories: Story[];
+    customerSubmissions?: CustomerStorySubmission[];
     categories: Category[];
     alerts: AlertItem[];
     quizzes: QuizQuestion[];
@@ -162,7 +264,7 @@ export async function pushAllDataToSheet(
 ): Promise<void> {
   await ensureSheetTabs(spreadsheetId);
 
-  // 1. Stories Rows
+  // 1. Stories (Cau_Chuyen)
   const storiesHeaders = [
     'ID',
     'Tiêu đề',
@@ -174,10 +276,13 @@ export async function pushAllDataToSheet(
     'Hành động khuyến nghị (phân cách bởi ||)',
     'Bài học ghi nhớ',
     'Tác giả',
-    'Trạng thái (DRAFT/PENDING_APPROVAL/PUBLISHED/NEED_REVISION)',
+    'Trạng thái',
     'Lượt xem',
     'Link ảnh',
     'Ghi chú duyệt',
+    'Nguồn gốc (OFFICIAL/CUSTOMER)',
+    'Mã câu chuyện gốc',
+    'Lượt bình chọn hữu ích',
     'Cập nhật lúc',
   ];
   const storiesData = payload.stories.map(s => [
@@ -195,10 +300,64 @@ export async function pushAllDataToSheet(
     s.views_count,
     s.image_url || '',
     s.rejection_note || '',
+    s.source_type || 'OFFICIAL',
+    s.source_submission_id || '',
+    s.helpful_votes || 0,
     s.updated_at,
   ]);
+  await upsertSheetRows(spreadsheetId, 'Cau_Chuyen', storiesHeaders, storiesData);
 
-  // 2. Alerts Rows
+  // 2. Customer Submissions (Khach_Hang_Chia_Se)
+  const customerSubmissions = payload.customerSubmissions || store.getCustomerSubmissions();
+  const customerHeaders = [
+    'ID',
+    'Ngày gửi',
+    'Tiêu đề gốc',
+    'Nội dung câu chuyện',
+    'Kẻ lừa đảo đã làm gì',
+    'Khách hàng đã xử lý',
+    'Lời nhắn nhủ cộng đồng',
+    'Mã nhóm chiêu trò',
+    'Chia sẻ ẩn danh (TRUE/FALSE)',
+    'Tên hiển thị',
+    'Số ĐT liên hệ (Nội bộ)',
+    'Email liên hệ (Nội bộ)',
+    'Trạng thái (PENDING_REVIEW/UNDER_REVIEW/NEED_REVISION/PUBLISHED/REJECTED)',
+    'Người biên tập/duyệt',
+    'Ngày duyệt',
+    'Ghi chú duyệt',
+    'Mã bài xuất bản',
+    'Tiêu đề biên tập',
+    'Tình huống biên tập',
+    'Thủ đoạn biên tập',
+    'Bài học biên tập',
+  ];
+  const customerData = customerSubmissions.map(sub => [
+    sub.id,
+    sub.submitted_at || sub.created_at,
+    sub.raw_title,
+    sub.raw_content,
+    sub.scam_method || '',
+    sub.customer_action || '',
+    sub.customer_lesson || '',
+    sub.category_id,
+    sub.is_anonymous ? 'TRUE' : 'FALSE',
+    sub.display_name || '',
+    sub.contact_phone || '',
+    sub.contact_email || '',
+    sub.status,
+    sub.reviewed_by || '',
+    sub.reviewed_at || '',
+    sub.review_note || '',
+    sub.published_story_id || '',
+    sub.edited_title || '',
+    sub.edited_situation || '',
+    sub.edited_scam_method || '',
+    sub.edited_lesson || '',
+  ]);
+  await upsertSheetRows(spreadsheetId, 'Khach_Hang_Chia_Se', customerHeaders, customerData);
+
+  // 3. Alerts (Canh_Bao)
   const alertsHeaders = [
     'ID',
     'Tiêu đề',
@@ -217,8 +376,9 @@ export async function pushAllDataToSheet(
     a.image_url || '',
     a.created_at,
   ]);
+  await upsertSheetRows(spreadsheetId, 'Canh_Bao', alertsHeaders, alertsData);
 
-  // 3. Categories Rows
+  // 4. Categories (Danh_Muc)
   const categoriesHeaders = ['ID', 'Tên danh mục', 'Biểu tượng (Icon)', 'Mô tả', 'Trạng thái'];
   const categoriesData = payload.categories.map(c => [
     c.id,
@@ -227,8 +387,9 @@ export async function pushAllDataToSheet(
     c.description,
     c.status,
   ]);
+  await upsertSheetRows(spreadsheetId, 'Danh_Muc', categoriesHeaders, categoriesData);
 
-  // 4. Quizzes Rows
+  // 5. Quizzes (Quiz)
   const quizzesHeaders = [
     'ID',
     'Câu hỏi',
@@ -253,81 +414,37 @@ export async function pushAllDataToSheet(
     q.story_id || '',
     q.status,
   ]);
+  await upsertSheetRows(spreadsheetId, 'Quiz', quizzesHeaders, quizzesData);
 
-  // 5. Settings Rows
-  const settingsHeaders = ['Mã cấu hình', 'Giá trị', 'Mô tả'];
+  // 6. Settings (Cai_Dat)
+  const settingsHeaders = ['Mã tham số (Key)', 'Giá trị (Value)', 'Mô tả'];
   const settingsData = [
-    ['bank_name', payload.settings.bank_name, 'Tên ngân hàng'],
-    ['branch_name', payload.settings.branch_name, 'Tên chi nhánh'],
-    ['department_name', payload.settings.department_name, 'Phòng ban đầu mối'],
-    ['hotline_support', payload.settings.hotline_support, 'Hotline 24/7 toàn quốc'],
-    ['hotline_branch', payload.settings.hotline_branch, 'Hotline trực tiếp Ninh Bình'],
-    ['emergency_address', payload.settings.emergency_address, 'Địa chỉ tiếp đón khách hàng'],
-    ['security_notice', payload.settings.security_notice, 'Thông điệp cảnh báo an toàn'],
+    ['hotline_support', payload.settings.hotline_support, 'Hotline 24/7 toàn quốc của VietinBank'],
+    ['hotline_branch', payload.settings.hotline_branch, 'Số máy bàn Chi nhánh Ninh Bình'],
+    ['emergency_address', payload.settings.emergency_address, 'Địa chỉ tiếp đón khách hàng khẩn cấp'],
+    ['branch_name', payload.settings.branch_name, 'Tên đơn vị'],
+    ['bank_name', payload.settings.bank_name, 'Ngân hàng'],
+    ['security_notice', payload.settings.security_notice, 'Thông báo an toàn'],
   ];
+  await upsertSheetRows(spreadsheetId, 'Cai_Dat', settingsHeaders, settingsData);
 
-  // 6. Analytics Rows
-  const analyticsHeaders = ['Chỉ số', 'Số lượng', 'Mô tả'];
+  // 7. Analytics (Thong_Ke)
+  const analyticsHeaders = ['Chỉ số', 'Số lượng', 'Ý nghĩa'];
   const analyticsData = [
-    ['total_views', payload.analytics.total_views, 'Tổng lượt xem bài học & cảnh báo'],
-    ['total_quizzes_taken', payload.analytics.total_quizzes_taken, 'Số lượt hoàn thành trắc nghiệm phản xạ'],
-    ['total_sos_clicks', payload.analytics.total_sos_clicks, 'Số lượt mở hướng dẫn khẩn cấp SOS'],
-    ['last_sync', new Date().toLocaleString('vi-VN'), 'Thời điểm đồng bộ gần nhất'],
+    ['total_views', payload.analytics.total_views, 'Tổng số lượt đọc câu chuyện cảnh giác'],
+    ['total_quizzes_taken', payload.analytics.total_quizzes_taken, 'Tổng số lượt tham gia trắc nghiệm phản xạ'],
+    ['total_sos_clicks', payload.analytics.total_sos_clicks, 'Số lượt bấm hỗ trợ khẩn cấp'],
+    ['last_sync_time', new Date().toISOString(), 'Thời điểm đồng bộ gần nhất'],
   ];
-
-  // Clear existing values in ranges and batch write
-  const data = [
-    {
-      range: 'Cau_Chuyen!A1:O',
-      values: [storiesHeaders, ...storiesData],
-    },
-    {
-      range: 'Canh_Bao!A1:G',
-      values: [alertsHeaders, ...alertsData],
-    },
-    {
-      range: 'Danh_Muc!A1:E',
-      values: [categoriesHeaders, ...categoriesData],
-    },
-    {
-      range: 'Quiz!A1:J',
-      values: [quizzesHeaders, ...quizzesData],
-    },
-    {
-      range: 'Cai_Dat!A1:C',
-      values: [settingsHeaders, ...settingsData],
-    },
-    {
-      range: 'Thong_Ke!A1:C',
-      values: [analyticsHeaders, ...analyticsData],
-    },
-  ];
-
-  // Clear data first to ensure no leftover rows
-  await Promise.all([
-    sheetsFetch(`/${spreadsheetId}/values/Cau_Chuyen!A1:Z:clear`, { method: 'POST' }),
-    sheetsFetch(`/${spreadsheetId}/values/Canh_Bao!A1:Z:clear`, { method: 'POST' }),
-    sheetsFetch(`/${spreadsheetId}/values/Danh_Muc!A1:Z:clear`, { method: 'POST' }),
-    sheetsFetch(`/${spreadsheetId}/values/Quiz!A1:Z:clear`, { method: 'POST' }),
-    sheetsFetch(`/${spreadsheetId}/values/Cai_Dat!A1:Z:clear`, { method: 'POST' }),
-    sheetsFetch(`/${spreadsheetId}/values/Thong_Ke!A1:Z:clear`, { method: 'POST' }),
-  ]);
-
-  // Update new values
-  await sheetsFetch(`/${spreadsheetId}/values:batchUpdate`, {
-    method: 'POST',
-    body: JSON.stringify({
-      valueInputOption: 'USER_ENTERED',
-      data,
-    }),
-  });
+  await upsertSheetRows(spreadsheetId, 'Thong_Ke', analyticsHeaders, analyticsData);
 }
 
 /**
- * PULL (IMPORT): Download all data from Google Sheets into local store
+ * PULL (IMPORT): Download all data from Google Sheets into local store (Upsert by ID)
  */
 export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
   stories: Story[];
+  customerSubmissions?: CustomerStorySubmission[];
   categories: Category[];
   alerts: AlertItem[];
   quizzes: QuizQuestion[];
@@ -335,7 +452,8 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
   analytics: Partial<AnalyticsData>;
 }> {
   const ranges = [
-    'Cau_Chuyen!A2:O',
+    'Cau_Chuyen!A2:R',
+    'Khach_Hang_Chia_Se!A2:U',
     'Canh_Bao!A2:G',
     'Danh_Muc!A2:E',
     'Quiz!A2:J',
@@ -344,7 +462,7 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
   ];
 
   const queryParams = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&');
-  const result = await sheetsFetch(`/${spreadsheetId}/values:batchGet?${queryParams}`);
+  const result = await sheetsFetch(`/${spreadsheetId}/values:batchGet?${queryParams}`).catch(() => ({}));
 
   const valueRanges: { range: string; values?: any[][] }[] = result.valueRanges || [];
   const getValues = (prefix: string) => {
@@ -355,7 +473,7 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
   // 1. Parse Stories
   const storiesRows = getValues('Cau_Chuyen');
   const stories: Story[] = storiesRows
-    .filter(row => row && row[1]) // Must have title
+    .filter(row => row && row[1])
     .map((row, idx) => {
       const id = row[0] || `story_${Date.now()}_${idx}`;
       const title = row[1] || '';
@@ -375,7 +493,10 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
       const views_count = Number(row[11]) || 0;
       const image_url = row[12] || undefined;
       const rejection_note = row[13] || undefined;
-      const updated_at = row[14] || new Date().toISOString();
+      const source_type = (row[14] === 'CUSTOMER' ? 'CUSTOMER' : 'OFFICIAL') as any;
+      const source_submission_id = row[15] || undefined;
+      const helpful_votes = Number(row[16]) || 0;
+      const updated_at = row[17] || new Date().toISOString();
 
       return {
         id,
@@ -393,13 +514,49 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
         views_count,
         image_url,
         rejection_note,
+        source_type,
+        source_submission_id,
+        helpful_votes,
         created_at: updated_at,
         updated_at,
         published_at: status === 'PUBLISHED' ? updated_at : undefined,
       };
     });
 
-  // 2. Parse Alerts
+  // 2. Parse Customer Submissions
+  const customerRows = getValues('Khach_Hang_Chia_Se');
+  const customerSubmissions: CustomerStorySubmission[] = customerRows
+    .filter(row => row && row[1])
+    .map((row, idx) => ({
+      id: row[0] || `sub_${Date.now()}_${idx}`,
+      submitted_at: row[1] || new Date().toISOString(),
+      raw_title: row[2] || 'Chiêu trò lừa đảo qua mạng',
+      raw_content: row[3] || '',
+      risk_level: 'CAO' as RiskLevel,
+      scam_method: row[4] || undefined,
+      customer_action: row[5] || undefined,
+      customer_lesson: row[6] || undefined,
+      category_id: row[7] || 'cat_congan',
+      is_anonymous: String(row[8]).toUpperCase() === 'TRUE',
+      display_name: row[9] || undefined,
+      contact_phone: row[10] || undefined,
+      contact_email: row[11] || undefined,
+      status: (['PENDING_REVIEW', 'UNDER_REVIEW', 'NEED_REVISION', 'PUBLISHED', 'REJECTED'].includes(row[12])
+        ? row[12]
+        : 'PENDING_REVIEW') as any,
+      reviewed_by: row[13] || undefined,
+      reviewed_at: row[14] || undefined,
+      review_note: row[15] || undefined,
+      published_story_id: row[16] || undefined,
+      edited_title: row[17] || undefined,
+      edited_situation: row[18] || undefined,
+      edited_scam_method: row[19] || undefined,
+      edited_lesson: row[20] || undefined,
+      created_at: row[1] || new Date().toISOString(),
+      updated_at: row[14] || row[1] || new Date().toISOString(),
+    }));
+
+  // 3. Parse Alerts
   const alertsRows = getValues('Canh_Bao');
   const alerts: AlertItem[] = alertsRows
     .filter(row => row && row[1])
@@ -416,7 +573,7 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
       created_by: 'VietinBank Ninh Bình',
     }));
 
-  // 3. Parse Categories
+  // 4. Parse Categories
   const categoriesRows = getValues('Danh_Muc');
   const categories: Category[] = categoriesRows
     .filter(row => row && row[1])
@@ -428,7 +585,7 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
       status: row[4] === 'inactive' ? 'inactive' : 'active',
     }));
 
-  // 4. Parse Quizzes
+  // 5. Parse Quizzes
   const quizzesRows = getValues('Quiz');
   const quizzes: QuizQuestion[] = quizzesRows
     .filter(row => row && row[1])
@@ -446,17 +603,17 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
       };
     });
 
-  // 5. Parse Settings
+  // 6. Parse Settings
   const settingsRows = getValues('Cai_Dat');
   const settings: Partial<SystemSettings> = {};
   settingsRows.forEach(row => {
     if (row && row[0] && row[1]) {
       const key = row[0] as keyof SystemSettings;
-      settings[key] = String(row[1]);
+      settings[key] = String(row[1]) as any;
     }
   });
 
-  // 6. Parse Analytics
+  // 7. Parse Analytics
   const analyticsRows = getValues('Thong_Ke');
   const analytics: Partial<AnalyticsData> = {};
   analyticsRows.forEach(row => {
@@ -469,6 +626,7 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
 
   return {
     stories,
+    customerSubmissions,
     categories,
     alerts,
     quizzes,
@@ -478,8 +636,115 @@ export async function pullAllDataFromSheet(spreadsheetId: string): Promise<{
 }
 
 /**
+ * PROCESS SYNC QUEUE: Consumes queued operations (CREATE / UPDATE / DELETE)
+ * and synchronizes them to Google Sheets using Upsert semantics.
+ */
+export async function processSyncQueue(spreadsheetId?: string): Promise<{
+  processedCount: number;
+  remainingCount: number;
+}> {
+  const targetSheetId = spreadsheetId || getStoredSheetConfig()?.spreadsheetId;
+  const queue = store.getSyncQueue();
+
+  if (queue.length === 0) {
+    return { processedCount: 0, remainingCount: 0 };
+  }
+
+  // If Google Sheets is configured, push queue items
+  if (targetSheetId) {
+    await ensureSheetTabs(targetSheetId);
+
+    // Group items by entity to process efficiently
+    for (const item of queue) {
+      try {
+        if (item.entity_type === 'STORY' && item.payload) {
+          const s = item.payload as Story;
+          const row = [
+            s.id,
+            s.title,
+            s.category_id,
+            s.risk_level,
+            s.situation,
+            s.scam_method,
+            (s.warning_signs || []).join(' || '),
+            (s.recommended_action || []).join(' || '),
+            s.lesson,
+            s.author_name,
+            s.status,
+            s.views_count,
+            s.image_url || '',
+            s.rejection_note || '',
+            s.source_type || 'OFFICIAL',
+            s.source_submission_id || '',
+            s.helpful_votes || 0,
+            s.updated_at,
+          ];
+          await upsertSheetRows(targetSheetId, 'Cau_Chuyen', [], [row]);
+        } else if (item.entity_type === 'CUSTOMER_SUBMISSION' && item.payload) {
+          const sub = item.payload as CustomerStorySubmission;
+          const row = [
+            sub.id,
+            sub.submitted_at || sub.created_at,
+            sub.raw_title,
+            sub.raw_content,
+            sub.scam_method || '',
+            sub.customer_action || '',
+            sub.customer_lesson || '',
+            sub.category_id,
+            sub.is_anonymous ? 'TRUE' : 'FALSE',
+            sub.display_name || '',
+            sub.contact_phone || '',
+            sub.contact_email || '',
+            sub.status,
+            sub.reviewed_by || '',
+            sub.reviewed_at || '',
+            sub.review_note || '',
+            sub.published_story_id || '',
+            sub.edited_title || '',
+            sub.edited_situation || '',
+            sub.edited_scam_method || '',
+            sub.edited_lesson || '',
+          ];
+          await upsertSheetRows(targetSheetId, 'Khach_Hang_Chia_Se', [], [row]);
+        } else if (item.entity_type === 'ALERT' && item.payload) {
+          const a = item.payload as AlertItem;
+          const row = [a.id, a.title, a.content, a.risk_level, a.status, a.image_url || '', a.created_at];
+          await upsertSheetRows(targetSheetId, 'Canh_Bao', [], [row]);
+        }
+
+        // Mark item as synced
+        store.markQueueItemSynced(item.id);
+      } catch (err) {
+        console.warn(`Could not sync item ${item.id} to sheet:`, err);
+        // Leave item in queue to retry next time
+      }
+    }
+  }
+
+  // Also try syncing to Google Apps Script Web App endpoint if available
+  const appsScriptUrl = getAppsScriptUrl();
+  if (appsScriptUrl && appsScriptUrl !== DEFAULT_APPS_SCRIPT_URL) {
+    try {
+      await fetch(appsScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SYNC_QUEUE',
+          items: queue,
+        }),
+      }).catch(() => {});
+    } catch {}
+  }
+
+  const remaining = store.getSyncQueue().length;
+  return {
+    processedCount: queue.length - remaining,
+    remainingCount: remaining,
+  };
+}
+
+/**
  * Pulls data directly from the deployed Google Apps Script Web App (JSON endpoint).
- * Allows syncing without requiring client-side Google OAuth login if deployed as "Anyone".
  */
 export async function pullDataFromAppsScript(url = getAppsScriptUrl()) {
   const targetUrl = url && url.trim() ? url.trim() : DEFAULT_APPS_SCRIPT_URL;
@@ -501,7 +766,6 @@ export async function pullDataFromAppsScript(url = getAppsScriptUrl()) {
     try {
       json = JSON.parse(text);
     } catch {
-      // If HTML was returned, Google Apps Script is asking for login / private permissions
       if (
         text.includes('You need permission') ||
         text.includes('drive.google.com') ||
@@ -509,7 +773,7 @@ export async function pullDataFromAppsScript(url = getAppsScriptUrl()) {
         text.includes('<html')
       ) {
         throw new Error(
-          'Bản triển khai Google Apps Script hiện đang bị chặn quyền riêng tư ("You need access"). Vui lòng mở Apps Script -> Triển khai (Deploy) -> Quản lý bản triển khai (Manage deployments) -> Chọn phiên bản -> Chỉnh sửa (Edit) -> Đổi mục "Ai có quyền truy cập" (Who has access) sang "Bất kỳ ai" (Anyone) rồi nhấn Triển khai (Deploy).'
+          'Bản triển khai Google Apps Script hiện đang bị chặn quyền riêng tư ("You need access"). Vui lòng mở Apps Script -> Triển khai (Deploy) -> Quản lý bản triển khai (Manage deployments) -> Đổi quyền truy cập sang "Bất kỳ ai" (Anyone).'
         );
       }
       throw new Error('Dữ liệu trả về từ Apps Script không đúng định dạng JSON.');
@@ -533,4 +797,3 @@ export async function pullDataFromAppsScript(url = getAppsScriptUrl()) {
     throw err;
   }
 }
-

@@ -1,4 +1,4 @@
-/**
+export const GOOGLE_APPS_SCRIPT_CODE_RAW = `/**
  * ==============================================================================
  * DỰ ÁN: CX400 – TRUYỀN THÔNG CẢNH GIÁC LỪA ĐẢO
  * ĐƠN VỊ: CHI NHÁNH VIETINBANK NINH BÌNH - PHÒNG DỊCH VỤ KHÁCH HÀNG (DVKH)
@@ -120,9 +120,9 @@ function validateAllData() {
     const stories = storySheet.getRange(2, 1, storySheet.getLastRow() - 1, 15).getValues();
     stories.forEach((row, idx) => {
       const line = idx + 2;
-      if (!row[0]) errors.push(`Cau_Chuyen - Dòng ${line}: Thiếu ID`);
-      if (!row[1]) errors.push(`Cau_Chuyen - Dòng ${line}: Thiếu Tiêu đề câu chuyện`);
-      if (!row[4]) errors.push(`Cau_Chuyen - Dòng ${line}: Thiếu nội dung Tình huống xảy ra`);
+      if (!row[0]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu ID');
+      if (!row[1]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu Tiêu đề câu chuyện');
+      if (!row[4]) errors.push('Cau_Chuyen - Dòng ' + line + ': Thiếu nội dung Tình huống xảy ra');
     });
   }
 
@@ -132,9 +132,9 @@ function validateAllData() {
     const quizzes = quizSheet.getRange(2, 1, quizSheet.getLastRow() - 1, 10).getValues();
     quizzes.forEach((row, idx) => {
       const line = idx + 2;
-      if (!row[1]) errors.push(`Quiz - Dòng ${line}: Thiếu Câu hỏi`);
+      if (!row[1]) errors.push('Quiz - Dòng ' + line + ': Thiếu Câu hỏi');
       if (row[6] === '' || isNaN(Number(row[6])) || Number(row[6]) < 0 || Number(row[6]) > 3) {
-        errors.push(`Quiz - Dòng ${line}: Chỉ số đáp án đúng phải là số 0, 1, 2 hoặc 3 (0=Đáp án 1, 1=Đáp án 2,...)`);
+        errors.push('Quiz - Dòng ' + line + ': Chỉ số đáp án đúng phải là số 0, 1, 2 hoặc 3 (0=Đáp án 1, 1=Đáp án 2,...)');
       }
     });
   }
@@ -143,7 +143,7 @@ function validateAllData() {
   if (errors.length === 0) {
     ui.alert('🎉 Xuất sắc! Tất cả dữ liệu hợp lệ và sẵn sàng đồng bộ vào ứng dụng CX400.');
   } else {
-    ui.alert('⚠️ Phát hiện ' + errors.length + ' cảnh báo:\n\n- ' + errors.slice(0, 10).join('\n- ') + (errors.length > 10 ? '\n... và các lỗi khác' : ''));
+    ui.alert('⚠️ Phát hiện ' + errors.length + ' cảnh báo:\\n\\n- ' + errors.slice(0, 10).join('\\n- ') + (errors.length > 10 ? '\\n... và các lỗi khác' : ''));
   }
 }
 
@@ -226,7 +226,7 @@ function addNewQuizTemplate() {
     'Tắt máy ngay và ra Công an phường/xã gần nhất xác minh',
     'Chuyển tiền vào tài khoản an toàn theo hướng dẫn',
     'Cung cấp mật khẩu iPay để họ chứng minh vô tội',
-    1, // Chỉ số 1 là đáp án thứ 2 (bắt đầu từ 0)
+    1,
     'Cơ quan Công an không bao giờ làm việc qua điện thoại hay yêu cầu chuyển tiền/cài phần mềm lạ.',
     '',
     'active'
@@ -268,16 +268,16 @@ function updateLastSyncTime() {
 function showUserGuide() {
   const ui = SpreadsheetApp.getUi();
   const msg = 
-    '=== HƯỚNG DẪN CÁN BỘ VIETINBANK NINH BÌNH ===\n\n' +
-    '1. Bảng tính này đồng bộ 2 chiều trực tiếp với Ứng dụng di động CX400 theo nguyên tắc UPSERT theo ID (không xóa sạch ghi lại).\n' +
-    '2. Các Tab dữ liệu gồm có:\n' +
-    '   - Cau_Chuyen: Kho tình huống lừa đảo & bài học cảnh giác.\n' +
-    '   - Khach_Hang_Chia_Se: Câu chuyện thực tế do khách hàng gửi qua ứng dụng (PENDING_REVIEW / UNDER_REVIEW / PUBLISHED).\n' +
-    '   - Canh_Bao: Cảnh báo khẩn cấp xuất hiện trên đầu bản tin.\n' +
-    '   - Danh_Muc: Các nhóm loại lừa đảo.\n' +
-    '   - Quiz: Câu hỏi trắc nghiệm rèn luyện phản xạ.\n' +
-    '   - Cai_Dat: Số Hotline và thông tin tiếp đón khách hàng chi nhánh.\n' +
-    '   - Thong_Ke: Báo cáo lượt tương tác.\n\n' +
+    '=== HƯỚNG DẪN CÁN BỘ VIETINBANK NINH BÌNH ===\\n\\n' +
+    '1. Bảng tính này đồng bộ 2 chiều trực tiếp với Ứng dụng di động CX400 theo nguyên tắc UPSERT theo ID (không xóa sạch ghi lại).\\n' +
+    '2. Các Tab dữ liệu gồm có:\\n' +
+    '   - Cau_Chuyen: Kho tình huống lừa đảo & bài học cảnh giác.\\n' +
+    '   - Khach_Hang_Chia_Se: Câu chuyện thực tế do khách hàng gửi qua ứng dụng (PENDING_REVIEW / UNDER_REVIEW / PUBLISHED).\\n' +
+    '   - Canh_Bao: Cảnh báo khẩn cấp xuất hiện trên đầu bản tin.\\n' +
+    '   - Danh_Muc: Các nhóm loại lừa đảo.\\n' +
+    '   - Quiz: Câu hỏi trắc nghiệm rèn luyện phản xạ.\\n' +
+    '   - Cai_Dat: Số Hotline và thông tin tiếp đón khách hàng chi nhánh.\\n' +
+    '   - Thong_Ke: Báo cáo lượt tương tác.\\n\\n' +
     '3. Sau khi chỉnh sửa nội dung trên Google Sheet, vào ứng dụng web CX400 bấm "Đồng bộ từ Google Sheet" để cập nhật ngay!';
     
   ui.alert(msg);
@@ -412,7 +412,6 @@ function doPost(e) {
     const payload = JSON.parse(e.postData.contents);
 
     if (payload.action === 'SYNC_QUEUE' && Array.isArray(payload.items)) {
-      // Process sync queue items
       payload.items.forEach(item => {
         if (item.entity === 'CUSTOMER_SUBMISSION' && item.payload) {
           const sub = item.payload;
@@ -421,7 +420,6 @@ function doPost(e) {
             sheet = ss.insertSheet('Khach_Hang_Chia_Se');
           }
           
-          // Check if exists
           const data = sheet.getDataRange().getValues();
           let foundRow = -1;
           for (let r = 1; r < data.length; r++) {
@@ -475,3 +473,4 @@ function doPost(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
+`;
